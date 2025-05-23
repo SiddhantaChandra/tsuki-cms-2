@@ -1,0 +1,82 @@
+.recentItemsCard {
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  padding: 20px;
+  margin-top: 30px;
+  background-color: #1e1e1e;
+}
+
+.recentItemsTitle {
+  font-size: 1.25rem;
+  font-weight: 500;
+  margin-bottom: 1rem;
+  color: #ffffff;
+}
+
+.noItems {
+  padding: 20px;
+  text-align: center;
+  color: #b0b0b0;
+}
+
+.tableContainer {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #e0e0e0;
+}
+
+.table th {
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid #333;
+  font-weight: 500;
+  color: #b0b0b0;
+}
+
+.table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #333;
+}
+
+.table tr:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.avatarCell {
+  width: 60px;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+}
+
+.avatarCard {
+  background-color: #2196f3;
+}
+
+.avatarSlab {
+  background-color: #ff9800;
+}
+
+.avatarAccessory {
+  background-color: #f44336;
+}
+
+.priceCell {
+  font-weight: 500;
+}
+
+.typeCell {
+  color: #b0b0b0;
+} 

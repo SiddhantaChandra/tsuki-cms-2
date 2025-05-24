@@ -11,6 +11,8 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { createClient } from '@/utils/supabase/client';
 import EditSlabForm from '@/components/Slabs/EditSlabForm';
 
+export const runtime = 'edge';
+
 export default function EditSlabPage() {
   const router = useRouter();
   const params = useParams();

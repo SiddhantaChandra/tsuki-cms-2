@@ -16,6 +16,8 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import useRBAC from '@/utils/hooks/useRBAC';
 import EditAccessoryForm from '@/components/Accessories/EditAccessoryForm';
 
+export const runtime = 'edge';
+
 export default function EditAccessoryPage({ params }) {
   const { id } = params;
   const router = useRouter();

@@ -12,6 +12,8 @@ import EditCardForm from '@/components/Cards/EditCardForm';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/Delete';
 
+export const runtime = 'edge';
+
 export default function EditCardPage() {
   const router = useRouter();
   const params = useParams();

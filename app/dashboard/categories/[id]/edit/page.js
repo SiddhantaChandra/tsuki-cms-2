@@ -23,6 +23,8 @@ import { createClient } from '@/utils/supabase/client';
 import slugify from 'slugify';
 import { v4 as uuidv4 } from 'uuid';
 
+export const runtime = 'edge';
+
 export default function EditCategoryPage({ params }) {
   const router = useRouter();
   const supabase = createClient();

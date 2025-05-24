@@ -4,10 +4,11 @@ This guide will help you deploy your Tsuki CMS v2 application to Cloudflare Page
 
 ## ✅ Issues Fixed
 
-- **Node.js Version**: Updated `wrangler.toml` to use Node.js 20
+- **Node.js Version**: Set Node.js 20 via environment variables
 - **Deprecated Supabase Packages**: Removed `@supabase/auth-helpers-nextjs` and updated all imports to use `@supabase/ssr`
 - **Middleware**: Updated to use the new Supabase SSR client
 - **Windows Compatibility**: Created Windows-compatible build scripts
+- **wrangler.toml**: Simplified for Cloudflare Pages compatibility
 
 ## Prerequisites
 
@@ -19,7 +20,7 @@ This guide will help you deploy your Tsuki CMS v2 application to Cloudflare Page
 
 The following files have been configured for Cloudflare Pages deployment:
 
-- `wrangler.toml` - Cloudflare Pages configuration with Node.js 20
+- `wrangler.toml` - Simplified Cloudflare Pages configuration
 - `next.config.mjs` - Next.js configuration with Cloudflare setup
 - `package.json` - Updated with deployment scripts
 - `middleware.js` - Updated to use new Supabase SSR client
@@ -35,9 +36,9 @@ The following files have been configured for Cloudflare Pages deployment:
 5. Connect your Git repository
 6. Configure build settings:
    - **Build command**: `npm run build`
+   - **Framework preset**: `Next.js` (auto-detected)
    - **Build output directory**: Leave empty (for SSR)
    - **Root directory**: `/` (or leave empty)
-   - **Node.js version**: Will use Node.js 20 (set in wrangler.toml)
 
 ### Method 2: Command Line Deployment
 
@@ -64,6 +65,7 @@ wrangler pages deploy .vercel/output/static
 
 Make sure to set the following environment variables in your Cloudflare Pages project:
 
+- `NODE_VERSION` = `20`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - Any other environment variables your app needs
@@ -98,6 +100,7 @@ If you encounter issues with `@cloudflare/next-on-pages` on Windows:
 1. ✅ **Fixed**: Deprecated Supabase packages updated to `@supabase/ssr`
 2. ✅ **Fixed**: Node.js version compatibility (now using Node.js 20)
 3. ✅ **Fixed**: Middleware updated for new Supabase client
+4. ✅ **Fixed**: wrangler.toml simplified for Pages compatibility
 
 ### Environment Variables
 
@@ -107,7 +110,7 @@ Make sure all environment variables are properly set in your Cloudflare Pages pr
 
 1. **Push to Git**: Commit and push your code to GitHub/GitLab
 2. **Connect Repository**: Link your repository in Cloudflare Pages Dashboard
-3. **Set Environment Variables**: Add your Supabase credentials
+3. **Set Environment Variables**: Add your Supabase credentials and Node.js version
 4. **Deploy**: Cloudflare will automatically build and deploy your app
 
 ## Additional Resources
@@ -123,4 +126,5 @@ Your application is now fully configured and ready for Cloudflare Pages deployme
 - ✅ Middleware protection
 - ✅ Supabase integration
 - ✅ Windows compatibility
-- ✅ Node.js 20 support 
+- ✅ Node.js 20 support
+- ✅ Simplified wrangler.toml for Pages 

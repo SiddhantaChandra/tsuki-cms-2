@@ -1,9 +1,10 @@
 name = "tsuki-cms-v2"
 pages_build_output_dir = ".next"
 
+# Environment variables are now set only in Cloudflare Pages Dashboard
+# and .dev.vars file (local development only)
 [vars]
 NODE_VERSION = "20"
-NEXT_PUBLIC_SUPABASE_URL = "https://bcslaoindjadawhkdrhk.supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjc2xhb2luZGphZGF3aGtkcmhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM3Mzc2NjQsImV4cCI6MjA0OTMxMzY2NH0.ZKQR3X_w0A8e8tCB2OXLqP1f5rVm1PshRl5vYtKvlH8"
+
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"] 

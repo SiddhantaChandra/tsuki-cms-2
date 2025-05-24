@@ -1,0 +1,28 @@
+# Cloudflare Pages ignore file
+# Exclude large cache files and unnecessary directories
+
+# Next.js cache and build artifacts that shouldn't be deployed
+.next/cache/
+.next/standalone/
+.next/static/chunks/webpack-*
+*.tsbuildinfo
+
+# Development and build tools
+node_modules/
+.git/
+.vscode/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Large files and caches
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Other unnecessary files
+*.log
+.DS_Store
+Thumbs.db 

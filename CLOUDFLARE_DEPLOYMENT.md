@@ -34,11 +34,7 @@ The following files have been configured for Cloudflare Pages deployment:
 3. Navigate to Pages
 4. Click "Create a project"
 5. Connect your Git repository
-6. Configure build settings:
-   - **Build command**: `npm run build`
-   - **Framework preset**: `Next.js` (auto-detected)
-   - **Build output directory**: Leave empty (for SSR)
-   - **Root directory**: `/` (or leave empty)
+6. Configure build settings:   - **Build command**: `npm run build`   - **Framework preset**: `Next.js` (auto-detected)   - **Build output directory**: `.next`   - **Root directory**: `/` (or leave empty)
 
 ### Method 2: Command Line Deployment
 

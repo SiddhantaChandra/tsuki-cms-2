@@ -1,11 +1,13 @@
 name = "tsuki-cms-v2"
 pages_build_output_dir = ".next"
 
-# Environment variables are automatically loaded from:
-# 1. Cloudflare Pages Dashboard settings (for deployments)
+# Environment variables - declared here but values come from:
+# 1. Cloudflare Pages Dashboard settings (for deployments)  
 # 2. .dev.vars file (for local development only)
-# 
-# No need to define sensitive variables here!
+[vars]
+NODE_VERSION = ""
+NEXT_PUBLIC_SUPABASE_URL = ""
+NEXT_PUBLIC_SUPABASE_ANON_KEY = ""
 
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"] 

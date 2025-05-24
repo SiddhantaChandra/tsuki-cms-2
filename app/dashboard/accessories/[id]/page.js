@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import {
   Container,
   Typography,
@@ -23,7 +23,7 @@ import useRBAC from '@/utils/hooks/useRBAC';
 
 export default function AccessoryDetailPage({ params }) {
   const { id } = params;
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
   const router = useRouter();
   const { isAdmin, isEditor } = useRBAC();
 

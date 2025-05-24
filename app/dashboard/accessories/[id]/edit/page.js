@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import {
   Container,
   Typography,
@@ -19,7 +19,7 @@ import EditAccessoryForm from '@/components/Accessories/EditAccessoryForm';
 export default function EditAccessoryPage({ params }) {
   const { id } = params;
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
   const { isAdmin, isEditor } = useRBAC();
 
   const [accessory, setAccessory] = useState(null);

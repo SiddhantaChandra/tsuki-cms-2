@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Container, Typography, CircularProgress, Alert } from '@mui/material';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import NewAccessoryForm from '@/components/Accessories/NewAccessoryForm'; // Will be created next
 
 export default function NewAccessoryPage() {
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [categoryError, setCategoryError] = useState(null);
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
 
   const fetchCategories = useCallback(async () => {
     setLoadingCategories(true);

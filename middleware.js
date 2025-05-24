@@ -1,4 +1,4 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 
 // Define protected routes with required roles and permissions
@@ -47,7 +47,24 @@ const protectedRoutes = [
  */
 export async function middleware(req) {
   const res = NextResponse.next()
-  const supabase = createMiddlewareClient({ req, res })
+  
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        get(name) {
+          return req.cookies.get(name)?.value
+        },
+        set(name, value, options) {
+          res.cookies.set({ name, value, ...options })
+        },
+        remove(name, options) {
+          res.cookies.set({ name, value: '', ...options })
+        },
+      },
+    }
+  )
   
   // Check if we need to protect this route
   const path = req.nextUrl.pathname

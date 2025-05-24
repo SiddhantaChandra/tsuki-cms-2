@@ -2,6 +2,7 @@
 const nextConfig = {
   images: {
     domains: ['bcslaoindjadawhkdrhk.supabase.co'],
+    unoptimized: true,
   },
   eslint: {
     // Disable ESLint during builds to avoid blocking on style issues

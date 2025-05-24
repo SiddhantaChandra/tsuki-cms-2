@@ -4,7 +4,7 @@ pages_build_output_dir = "out"
 # Environment variables - declared here but values come from:
 # 1. Cloudflare Pages Dashboard settings (for deployments)  
 # 2. .dev.vars file (for local development only)
-[env.deployment.vars]
+[env.production.vars]
 NEXT_PUBLIC_SUPABASE_URL = ""
 NEXT_PUBLIC_SUPABASE_ANON_KEY = ""
 

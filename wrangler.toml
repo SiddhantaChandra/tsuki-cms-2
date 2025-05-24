@@ -1,5 +1,5 @@
 name = "tsuki-cms-v2"
-pages_build_output_dir = "out"
+pages_build_output_dir = ".vercel/output/static"
 
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
@@ -7,5 +7,4 @@ compatibility_flags = ["nodejs_compat"]
 # Environment variables injected during build
 [vars]
 NODE_VERSION = "20"
-NEXT_PUBLIC_SUPABASE_URL = "https://zyqebttgsbkjarthknns.supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5cWVidHRnc2JramFydGhrbm5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwNzkxNzcsImV4cCI6MjA2MzY1NTE3N30.o3K5QGPT-BL6y9iBnn4oaxkrD-Oed6mW3TALFk4vqJ8"
+

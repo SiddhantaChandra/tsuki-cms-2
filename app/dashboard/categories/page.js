@@ -30,7 +30,7 @@ import {
   Drawer
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
@@ -46,7 +46,7 @@ export default function CategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
   const router = useRouter();
 
   // Search and filter state

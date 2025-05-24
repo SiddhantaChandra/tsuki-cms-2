@@ -5,54 +5,75 @@ import { Button, TextField, Container, Typography, Box, Alert } from '@mui/mater
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 
-export default function LoginPage() {
+export default function SignupPage() {
   const router = useRouter();
   const supabase = createClient();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
-    // Sign in the user
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (signInError) {
-      setError(signInError.message);
+    // Basic validation
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
       setLoading(false);
       return;
     }
 
-    if (signInData.user) {
-      // Check if the user is in the admin_list table
-      const { data: adminUser, error: adminError } = await supabase
-        .from('admin_list')
-        .select('email')
-        .eq('email', signInData.user.email)
-        .single(); // .single() expects one row or null
-
-      if (adminError || !adminUser) {
-        setError('Access Denied. You are not an authorized admin.');
-        await supabase.auth.signOut(); // Sign out the user
-        setLoading(false);
-      } else {
-        // User is an admin, proceed to dashboard
-        router.push('/dashboard');
-        // No need to setLoading(false) if navigating away
-      }
-    } else {
-      // Should not happen if signInError is null, but as a fallback
-      setError('An unexpected error occurred during login.');
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
       setLoading(false);
+      return;
     }
+
+    // Check if email is in admin_list
+    const { data: adminUser } = await supabase
+      .from('admin_list')
+      .select('email')
+      .eq('email', email)
+      .single();
+
+    if (!adminUser) {
+      setError('Email not authorized. Only admin emails can create accounts.');
+      setLoading(false);
+      return;
+    }
+
+    // Sign up the user
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (signUpError) {
+      setError(signUpError.message);
+      setLoading(false);
+      return;
+    }
+
+    if (data.user) {
+      setSuccess('Account created successfully! You can now sign in.');
+      // Clear form
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+      
+      // Redirect to login after 2 seconds
+      setTimeout(() => {
+        router.push('/login');
+      }, 2000);
+    }
+
+    setLoading(false);
   };
 
   return (
@@ -66,7 +87,10 @@ export default function LoginPage() {
         }}
       >
         <Typography component="h1" variant="h5">
-          Sign In
+          Admin Sign Up
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
+          Only authorized admin emails can create accounts
         </Typography>
         <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
           <TextField
@@ -90,14 +114,31 @@ export default function LoginPage() {
             label="Password"
             type="password"
             id="password"
-            autoComplete="current-password"
+            autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
+          />
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            name="confirmPassword"
+            label="Confirm Password"
+            type="password"
+            id="confirmPassword"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
             disabled={loading}
           />
           {error && (
             <Alert severity="error" sx={{ mt: 2 }}>
               {error}
+            </Alert>
+          )}
+          {success && (
+            <Alert severity="success" sx={{ mt: 2 }}>
+              {success}
             </Alert>
           )}
           <Button
@@ -107,15 +148,15 @@ export default function LoginPage() {
             sx={{ mt: 3, mb: 2 }}
             disabled={loading}
           >
-            {loading ? 'Signing In...' : 'Sign In'}
+            {loading ? 'Creating Account...' : 'Sign Up'}
           </Button>
           <Button
             fullWidth
             variant="text"
-            onClick={() => router.push('/signup')}
+            onClick={() => router.push('/login')}
             disabled={loading}
           >
-            Need an admin account? Sign Up
+            Already have an account? Sign In
           </Button>
         </Box>
       </Box>

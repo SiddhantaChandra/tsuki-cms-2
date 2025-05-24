@@ -8,7 +8,7 @@ This guide will help you deploy your Tsuki CMS v2 application to Cloudflare Page
 - **Deprecated Supabase Packages**: Removed `@supabase/auth-helpers-nextjs` and updated all imports to use `@supabase/ssr`
 - **Middleware**: Updated to use the new Supabase SSR client
 - **Windows Compatibility**: Created Windows-compatible build scripts
-- **wrangler.toml**: Simplified for Cloudflare Pages compatibility
+- **Dynamic Configuration**: Implemented dynamic wrangler.toml generation with environment variables
 
 ## Prerequisites
 
@@ -20,11 +20,29 @@ This guide will help you deploy your Tsuki CMS v2 application to Cloudflare Page
 
 The following files have been configured for Cloudflare Pages deployment:
 
-- `wrangler.toml` - Simplified Cloudflare Pages configuration
+- `generate-wrangler.js` - **NEW**: Dynamically generates wrangler.toml with environment variables
 - `next.config.mjs` - Next.js configuration with Cloudflare setup
-- `package.json` - Updated with deployment scripts
+- `package.json` - Updated with deployment scripts that auto-generate wrangler.toml
 - `middleware.js` - Updated to use new Supabase SSR client
 - `.nvmrc` - Specifies Node.js version 20
+
+## Dynamic Configuration System
+
+### How It Works
+
+The project now uses a **dynamic configuration system** that automatically injects environment variables into `wrangler.toml` at build time:
+
+1. **Build Process**: When you run any build command, `generate-wrangler.js` runs first
+2. **Environment Detection**: The script reads environment variables from Cloudflare Pages build environment
+3. **Configuration Generation**: Creates `wrangler.toml` with all necessary settings and variables
+4. **Build Continuation**: Next.js build proceeds with the generated configuration
+
+### Benefits
+
+- ✅ **Automatic Environment Variable Injection**: No manual configuration file updates needed
+- ✅ **Build-Time Generation**: Works seamlessly with Cloudflare Pages' build process
+- ✅ **Missing Variable Detection**: Warns about missing environment variables
+- ✅ **Always Up-to-Date**: Configuration reflects current environment settings
 
 ## Deployment Methods
 
@@ -36,7 +54,7 @@ The following files have been configured for Cloudflare Pages deployment:
 4. Click "Create a project"
 5. Connect your Git repository
 6. Configure build settings:
-   - **Build command**: `npm run build`
+   - **Build command**: `npm run build` (this now includes dynamic config generation)
    - **Framework preset**: `Next.js` (auto-detected)
    - **Build output directory**: `.next`
    - **Root directory**: `/` (or leave empty)
@@ -46,17 +64,15 @@ The following files have been configured for Cloudflare Pages deployment:
 
 #### For Windows Users:
 ```bash
-# Build and test locally
+# Build and test locally (includes dynamic config generation)
 npm run pages:build-windows
 
 # For actual deployment, use Git integration (recommended)
-# Or if you have wrangler configured:
-# wrangler pages deploy .next
 ```
 
 #### For Linux/macOS Users:
 ```bash
-# Build for Cloudflare
+# Build for Cloudflare (includes dynamic config generation)
 npm run pages:build
 
 # Deploy
@@ -80,13 +96,13 @@ wrangler pages deploy .vercel/output/static
 5. Make sure to set them for **Production** environment
 6. **Save and redeploy** your project
 
-### Current Issue Fix:
-Your build is failing because `NODE_VERSION=20` is not set. The error shows:
-```
-You are using Node.js 18.17.1. For Next.js, Node.js version "^18.18.0 || ^19.8.0 || >= 20.0.0" is required.
-```
+### Automatic Injection
 
-After setting `NODE_VERSION=20`, your build should succeed.
+The `generate-wrangler.js` script will automatically:
+- Read these environment variables during build
+- Inject them into the generated `wrangler.toml`
+- Display which variables are set/missing
+- Warn about any missing required variables
 
 ## Local Development with Cloudflare
 
@@ -96,13 +112,20 @@ To test your app locally:
 # Standard Next.js development
 npm run dev
 
-# Build and test for Cloudflare compatibility
+# Build and test for Cloudflare compatibility (with dynamic config)
 npm run pages:build-windows  # Windows
 # or
 npm run pages:build          # Linux/macOS
 ```
 
 ## Troubleshooting
+
+### Dynamic Configuration
+
+The dynamic configuration system handles:
+- ✅ **Environment Variable Injection**: Automatically includes all required variables
+- ✅ **Missing Variable Detection**: Shows clear warnings for missing variables
+- ✅ **Build-Time Generation**: Works with Cloudflare Pages' build environment
 
 ### Windows Compatibility Issues
 
@@ -115,19 +138,15 @@ If you encounter issues with `@cloudflare/next-on-pages` on Windows:
 1. ✅ **Fixed**: Deprecated Supabase packages updated to `@supabase/ssr`
 2. ✅ **Fixed**: Node.js version compatibility (now using Node.js 20)
 3. ✅ **Fixed**: Middleware updated for new Supabase client
-4. ✅ **Fixed**: wrangler.toml simplified for Pages compatibility
-5. 🔄 **Current**: Node.js version environment variable needs to be set in Cloudflare Pages
-
-### Environment Variables
-
-Make sure all environment variables are properly set in your Cloudflare Pages project settings.
+4. ✅ **Fixed**: Dynamic wrangler.toml generation with environment variables
+5. 🔄 **Current**: Environment variables need to be set in Cloudflare Pages Dashboard
 
 ## Deployment Steps Summary
 
 1. **Push to Git**: Commit and push your code to GitHub/GitLab
 2. **Connect Repository**: Link your repository in Cloudflare Pages Dashboard
 3. **Set Environment Variables**: Add NODE_VERSION=20, Supabase credentials
-4. **Deploy**: Cloudflare will automatically build and deploy your app
+4. **Deploy**: Cloudflare will automatically build and deploy your app (with dynamic config generation)
 
 ## Additional Resources
 
@@ -143,4 +162,4 @@ Your application is now fully configured and ready for Cloudflare Pages deployme
 - ✅ Supabase integration
 - ✅ Windows compatibility
 - ✅ Node.js 20 support (.nvmrc + environment variable)
-- ✅ Simplified wrangler.toml for Pages 
+- ✅ **Dynamic wrangler.toml generation with environment variable injection** 

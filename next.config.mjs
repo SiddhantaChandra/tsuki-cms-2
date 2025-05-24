@@ -13,7 +13,6 @@ const nextConfig = {
     // These will be replaced at build time with actual values from Cloudflare Pages
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    NODE_VERSION: process.env.NODE_VERSION,
   },
 };
 

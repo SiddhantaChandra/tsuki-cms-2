@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node debug-build.js && node generate-wrangler.js && next build",
+    "build": "node debug-build.js && node generate-wrangler.js && next build && npx @cloudflare/next-on-pages",
     "start": "next start",
     "lint": "next lint",
     "debug-env": "node debug-build.js",

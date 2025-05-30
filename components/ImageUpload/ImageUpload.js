@@ -55,21 +55,16 @@ const ThumbnailPreviewImage = styled('img')({
 });
 
 const modalStyle = {
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: '90%',
-  maxWidth: 700,
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  width: '100vw',
+  height: '100vh',
   bgcolor: 'background.paper',
-  borderRadius: '12px',
-  boxShadow: 24,
-  p: 4,
   display: 'flex',
   flexDirection: 'column',
-  alignItems: 'center',
-  maxHeight: '95vh',
-  overflowY: 'auto',
+  zIndex: 1300,
+  overflow: 'hidden',
 };
 
 // Utility function to convert an image file to WebP
@@ -164,10 +159,7 @@ const ImageUpload = React.forwardRef(({ onUploadComplete, bucketName = 'card_ima
 
   const [currentCroppingFile, setCurrentCroppingFile] = useState(null);
   const cropperRef = useRef(null);
-  const [zoom, setZoom] = useState(1);
-  const [minZoom, setMinZoom] = useState(0.1);
-  const [maxZoom, setMaxZoom] = useState(3);
-  // Removed fixed aspect ratio - now supports freeform cropping
+  // Removed zoom-related state - now supports freeform cropping without zoom controls
 
   // DND Kit sensors
   const sensors = useSensors(
@@ -336,18 +328,10 @@ const ImageUpload = React.forwardRef(({ onUploadComplete, bucketName = 'card_ima
       index, 
       imageSrcForCropper: fileToCrop.originalUrl || fileToCrop.previewUrl
     });
-    setZoom(1); // Reset zoom state
   };
 
   const handleCropModalClose = () => {
     setCurrentCroppingFile(null);
-  };
-
-  const handleZoomChange = (event, newValue) => {
-    setZoom(newValue);
-    if (cropperRef.current) {
-      cropperRef.current.zoomImage(newValue);
-    }
   };
 
   const handleApplyCrop = async () => {
@@ -497,14 +481,14 @@ const ImageUpload = React.forwardRef(({ onUploadComplete, bucketName = 'card_ima
     if (cropper) {
       console.log('Using cropper instance from callback');
       try {
-        cropper.zoomImage(zoom);
+        cropper.zoomImage(1);
       } catch (e) {
         console.error('Error applying zoom to cropper instance:', e);
       }
     } else if (cropperRef.current) {
       console.log('Using cropperRef.current');
       try {
-        cropperRef.current.zoomImage(zoom);
+        cropperRef.current.zoomImage(1);
       } catch (e) {
         console.error('Error applying zoom to cropperRef.current:', e);
       }
@@ -595,55 +579,83 @@ const ImageUpload = React.forwardRef(({ onUploadComplete, bucketName = 'card_ima
           aria-labelledby="crop-image-modal-title"
         >
           <Box sx={modalStyle}>
-            <Typography id="crop-image-modal-title" variant="h6" component="h2" sx={{ mb: 2 }}>
-              Edit Image
-            </Typography>
-
-            {currentCroppingFile?.imageSrcForCropper && (
-              <Box sx={{ height: 400, width: '100%', position: 'relative', mb: 2 }}>
-                <Cropper
-                  ref={cropperRef}
-                  src={currentCroppingFile.imageSrcForCropper}
-                  stencilComponent={RectangleStencil}
-                  stencilProps={{
-                    movable: true,
-                    resizable: true,
-                  }}
-                  onReady={onCropperReady}
-                  onChange={onCropperChange}
-                  className="advanced-cropper"
-                />
+            {/* Header */}
+            <Box sx={{ 
+              p: 2, 
+              borderBottom: 1, 
+              borderColor: 'divider',
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              backgroundColor: 'background.paper'
+            }}>
+              <Typography id="crop-image-modal-title" variant="h6" component="h2">
+                Edit Image
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button onClick={handleCropModalClose} disabled={isProcessing}>
+                  Cancel
+                </Button>
+                <Button 
+                  variant="contained" 
+                  onClick={handleApplyCrop} 
+                  disabled={isProcessing || !currentCroppingFile}
+                  title="Apply crop to the image"
+                >
+                  {isProcessing ? 'Applying...' : 'Apply Crop'}
+                </Button>
               </Box>
-            )}
-            {!currentCroppingFile?.imageSrcForCropper && currentCroppingFile && (
-               <Typography sx={{my:2, color: 'error.main'}}>Error: Original image source for cropper is missing.</Typography>
-            )}
-            <Box sx={{ width: '80%', my: 2 }}>
-                <Typography gutterBottom>Zoom</Typography>
-                <Slider
-                    value={zoom}
-                    min={minZoom}
-                    max={maxZoom}
-                    step={0.01}
-                    aria-labelledby="zoom-slider"
-                    valueLabelDisplay="auto"
-                    onChange={handleZoomChange}
-                    disabled={isProcessing || !currentCroppingFile}
-                />
             </Box>
-            {isProcessing && <CircularProgress sx={{my: 2}}/>}
-            <Box sx={{ mt: 3, width: '100%', display: 'flex', justifyContent: 'flex-end' }}>
-              <Button onClick={handleCropModalClose} sx={{ mr: 1 }} disabled={isProcessing}>
-                Cancel
-              </Button>
-              <Button 
-                variant="contained" 
-                onClick={handleApplyCrop} 
-                disabled={isProcessing || !currentCroppingFile}
-                title="Apply crop to the image"
-              >
-                {isProcessing ? 'Applying...' : 'Apply Crop'}
-              </Button>
+
+            {/* Cropper Area */}
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+              {currentCroppingFile?.imageSrcForCropper && (
+                <Box sx={{ 
+                  flex: 1, 
+                  minHeight: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  p: 1,
+                  overflow: 'hidden'
+                }}>
+                  <Box sx={{ 
+                    height: '100%',
+                    width: '100%',
+                    maxHeight: 'calc(100vh - 80px)', // Account for header
+                    position: 'relative'
+                  }}>
+                    <Cropper
+                      ref={cropperRef}
+                      src={currentCroppingFile.imageSrcForCropper}
+                      stencilComponent={RectangleStencil}
+                      stencilProps={{
+                        movable: true,
+                        resizable: true,
+                      }}
+                      onReady={onCropperReady}
+                      onChange={onCropperChange}
+                      className="advanced-cropper"
+                      style={{ height: '100%', width: '100%' }}
+                    />
+                  </Box>
+                </Box>
+              )}
+              {!currentCroppingFile?.imageSrcForCropper && currentCroppingFile && (
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+                  <Typography sx={{ color: 'error.main' }}>
+                    Error: Original image source for cropper is missing.
+                  </Typography>
+                </Box>
+              )}
+              {isProcessing && (
+                <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2, bgcolor: 'background.paper', borderRadius: 1, boxShadow: 2 }}>
+                    <CircularProgress />
+                    <Typography sx={{ ml: 1 }}>Processing...</Typography>
+                  </Box>
+                </Box>
+              )}
             </Box>
           </Box>
         </Modal>

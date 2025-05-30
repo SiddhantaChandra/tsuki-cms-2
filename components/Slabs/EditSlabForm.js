@@ -101,9 +101,6 @@ export default function EditSlabForm({
   // Cropping state
   const [cropperImage, setCropperImage] = useState(null);
   const [showCropper, setShowCropper] = useState(false);
-  const [cropperZoom, setCropperZoom] = useState(1);
-  const [cropperMinZoom, setCropperMinZoom] = useState(0.1);
-  const [cropperMaxZoom, setCropperMaxZoom] = useState(3);
   const cropperRef = useRef(null);
   const [croppingImageIndex, setCroppingImageIndex] = useState(null);
 
@@ -315,14 +312,6 @@ export default function EditSlabForm({
     setShowCropper(false);
     setCropperImage(null);
     setCroppingImageIndex(null);
-    setCropperZoom(1);
-  };
-
-  const handleZoomChange = (event, newValue) => {
-    setCropperZoom(newValue);
-    if (cropperRef.current) {
-      cropperRef.current.setZoom(newValue);
-    }
   };
 
   const handleSaveCrop = async () => {
@@ -971,7 +960,7 @@ export default function EditSlabForm({
         </Paper>
       )}
 
-      {/* Image Cropper Modal - keeping existing functionality */}
+      {/* Image Cropper Modal - updated for full-screen precision cropping */}
       <Modal
         open={showCropper}
         onClose={handleCloseCropper}
@@ -979,77 +968,90 @@ export default function EditSlabForm({
         aria-describedby="modal-to-crop-card-image"
       >
         <Box sx={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '90%',
-          maxWidth: 700,
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
           bgcolor: 'background.paper',
-          borderRadius: '12px',
-          boxShadow: 24,
-          p: 4,
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          maxHeight: '95vh',
-          overflowY: 'auto',
+          zIndex: 1300,
+          overflow: 'hidden',
         }}>
-          <Typography id="crop-image-modal" variant="h6" component="h2" sx={{ mb: 2 }}>
-            Crop Image
-          </Typography>
-          
-          <Box sx={{ width: '100%', height: 400, mb: 2 }}>
-            {cropperImage && (
-              <Cropper
-                ref={cropperRef}
-                src={cropperImage}
-                className="cropper"
-                stencilProps={{
-                  movable: true,
-                  resizable: true
-                }}
-                stencilComponent={RectangleStencil}
-                defaultSize={{ width: '95%', height: '95%' }}
-                zoom={cropperZoom}
-                minZoom={cropperMinZoom}
-                maxZoom={cropperMaxZoom}
-              />
-            )}
-          </Box>
-          
-          <Box sx={{ width: '100%', mb: 3 }}>
-            <Typography id="zoom-slider" gutterBottom>
-              Zoom
+          {/* Header */}
+          <Box sx={{ 
+            p: 2, 
+            borderBottom: 1, 
+            borderColor: 'divider',
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            backgroundColor: 'background.paper'
+          }}>
+            <Typography id="crop-image-modal" variant="h6" component="h2">
+              Crop Image
             </Typography>
-            <Slider
-              value={cropperZoom}
-              onChange={handleZoomChange}
-              aria-labelledby="zoom-slider"
-              valueLabelDisplay="auto"
-              step={0.1}
-              marks
-              min={cropperMinZoom}
-              max={cropperMaxZoom}
-            />
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button 
+                variant="outlined" 
+                onClick={handleCloseCropper}
+                disabled={formSubmitLoading}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="contained" 
+                onClick={handleSaveCrop}
+                disabled={formSubmitLoading}
+                startIcon={formSubmitLoading ? <CircularProgress size={20} /> : <CropIcon />}
+              >
+                {formSubmitLoading ? 'Saving...' : 'Save Crop'}
+              </Button>
+            </Box>
           </Box>
-          
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button 
-              variant="outlined" 
-              onClick={handleCloseCropper}
-              disabled={formSubmitLoading}
-            >
-              Cancel
-            </Button>
-            <Button 
-              variant="contained" 
-              onClick={handleSaveCrop}
-              disabled={formSubmitLoading}
-              startIcon={formSubmitLoading ? <CircularProgress size={20} /> : <CropIcon />}
-            >
-              {formSubmitLoading ? 'Saving...' : 'Save Crop'}
-            </Button>
+
+          {/* Cropper Area */}
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+            {cropperImage && (
+              <Box sx={{ 
+                flex: 1, 
+                minHeight: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                p: 1,
+                overflow: 'hidden'
+              }}>
+                <Box sx={{ 
+                  height: '100%',
+                  width: '100%',
+                  maxHeight: 'calc(100vh - 80px)', // Account for header
+                  position: 'relative'
+                }}>
+                  <Cropper
+                    ref={cropperRef}
+                    src={cropperImage}
+                    className="cropper"
+                    stencilProps={{
+                      movable: true,
+                      resizable: true
+                    }}
+                    stencilComponent={RectangleStencil}
+                    defaultSize={{ width: '95%', height: '95%' }}
+                    style={{ height: '100%', width: '100%' }}
+                  />
+                </Box>
+              </Box>
+            )}
+            {formSubmitLoading && (
+              <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2, bgcolor: 'background.paper', borderRadius: 1, boxShadow: 2 }}>
+                  <CircularProgress />
+                  <Typography sx={{ ml: 1 }}>Processing...</Typography>
+                </Box>
+              </Box>
+            )}
           </Box>
         </Box>
       </Modal>

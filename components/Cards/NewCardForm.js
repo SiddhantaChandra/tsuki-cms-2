@@ -31,8 +31,8 @@ import ImageIcon from '@mui/icons-material/Image';
 import Link from 'next/link';
 
 // Motion components
-const MotionCard = motion(Card);
-const MotionBox = motion(Box);
+const MotionCard = motion.create(Card);
+const MotionBox = motion.create(Box);
 
 export default function NewCardForm({ initialCategories, onFormSubmitSuccess, loadingCategories, categoryError }) {
   console.log('[NewCardForm] Function body execution (render start). LoadingCategories:', loadingCategories, 'CategoryError:', categoryError);

@@ -21,8 +21,8 @@ import { createClient } from '@/utils/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Add framer-motion wrapper for MUI components
-const MotionCard = motion(Card);
-const MotionTableRow = motion(TableRow);
+const MotionCard = motion.create(Card);
+const MotionTableRow = motion.create(TableRow);
 
 export default function CardsTable({ cards, onCardDeleted, viewMode = 'table' }) {
   const supabase = createClient();

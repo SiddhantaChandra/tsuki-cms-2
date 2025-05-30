@@ -36,8 +36,21 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import CloseIcon from '@mui/icons-material/Close';
 
 // Motion components
-const MotionCard = motion(Card);
-const MotionBox = motion(Box);
+const MotionBox = motion.create(Box);
+
+// CSS animations
+const animationStyles = {
+  '@keyframes fadeInUp': {
+    '0%': {
+      opacity: 0,
+      transform: 'translateY(20px)'
+    },
+    '100%': {
+      opacity: 1,
+      transform: 'translateY(0)'
+    }
+  }
+};
 
 export default function ModernEditCardForm({ initialCardData, initialCategories, onFormSubmitSuccess }) {
   const supabase = createClient();
@@ -81,6 +94,24 @@ export default function ModernEditCardForm({ initialCardData, initialCategories,
   // Initialize form with existing card data
   useEffect(() => {
     if (initialCardData) {
+      // Handle image_urls properly - ensure it's an array
+      let imageUrls = [];
+      if (initialCardData.image_urls) {
+        if (Array.isArray(initialCardData.image_urls)) {
+          imageUrls = initialCardData.image_urls;
+        } else if (typeof initialCardData.image_urls === 'string') {
+          // Handle case where it might be a stringified array
+          try {
+            imageUrls = JSON.parse(initialCardData.image_urls);
+          } catch (e) {
+            console.error('Failed to parse image_urls as JSON:', e);
+            imageUrls = [initialCardData.image_urls]; // Treat as single URL
+          }
+        } else {
+          console.warn('Unexpected image_urls format:', initialCardData.image_urls);
+        }
+      }
+
       const values = {
         name: initialCardData.name || '',
         category: initialCardData.category_id || '',
@@ -89,7 +120,7 @@ export default function ModernEditCardForm({ initialCardData, initialCategories,
         price: initialCardData.price ? String(initialCardData.price) : '',
         condition: initialCardData.condition || '',
         language: initialCardData.language || 'Japanese',
-        imageUrls: initialCardData.image_urls || [],
+        imageUrls: imageUrls,
         thumbnailUrl: initialCardData.thumbnail_url || null
       };
 
@@ -373,7 +404,12 @@ export default function ModernEditCardForm({ initialCardData, initialCategories,
   };
 
   return (
-    <Box sx={{ maxWidth: 800, mx: 'auto', p: 3 }}>
+    <Box sx={{ 
+      maxWidth: 800, 
+      mx: 'auto', 
+      p: 3,
+      ...animationStyles
+    }}>
       {/* Header */}
       <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 700, mb: 3 }}>
         Edit Card
@@ -382,56 +418,64 @@ export default function ModernEditCardForm({ initialCardData, initialCategories,
       {/* Stats Cards */}
       <Grid container spacing={2} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <MotionCard
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+          <Card
+            sx={{ 
+              opacity: 0,
+              animation: 'fadeInUp 0.5s ease forwards',
+              animationDelay: '0.1s'
+            }}
           >
             <CardContent sx={{ textAlign: 'center' }}>
               <ImageIcon color="primary" />
               <Typography variant="h6">{existingImageUrls.length}</Typography>
               <Typography variant="body2" color="text.secondary">Images</Typography>
             </CardContent>
-          </MotionCard>
+          </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <MotionCard
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+          <Card
+            sx={{ 
+              opacity: 0,
+              animation: 'fadeInUp 0.5s ease forwards',
+              animationDelay: '0.2s'
+            }}
           >
             <CardContent sx={{ textAlign: 'center' }}>
               <LocalOfferIcon color="success" />
               <Typography variant="h6">₹{price || '0'}</Typography>
               <Typography variant="body2" color="text.secondary">Current Price</Typography>
             </CardContent>
-          </MotionCard>
+          </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <MotionCard
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
+          <Card
+            sx={{ 
+              opacity: 0,
+              animation: 'fadeInUp 0.5s ease forwards',
+              animationDelay: '0.3s'
+            }}
           >
             <CardContent sx={{ textAlign: 'center' }}>
               <CategoryIcon color="info" />
               <Typography variant="h6">{categories.find(c => c.id === selectedCategory)?.name || 'N/A'}</Typography>
               <Typography variant="body2" color="text.secondary">Category</Typography>
             </CardContent>
-          </MotionCard>
+          </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <MotionCard
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
+          <Card
+            sx={{ 
+              opacity: 0,
+              animation: 'fadeInUp 0.5s ease forwards',
+              animationDelay: '0.4s'
+            }}
           >
             <CardContent sx={{ textAlign: 'center' }}>
               <EditIcon color="warning" />
               <Typography variant="h6">{hasChanges ? 'Modified' : 'No Changes'}</Typography>
               <Typography variant="body2" color="text.secondary">Status</Typography>
             </CardContent>
-          </MotionCard>
+          </Card>
         </Grid>
       </Grid>
 
@@ -623,134 +667,109 @@ export default function ModernEditCardForm({ initialCardData, initialCategories,
                 <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
                   Current Images
               </Typography>
-                <Grid container spacing={2}>
+                <Box sx={{ 
+                  display: 'flex', 
+                  flexWrap: 'wrap', 
+                  gap: 2
+                }}>
                 {existingImageUrls.map((url, index) => (
-                    <Grid item xs={6} sm={4} md={3} key={index}>
-                      <MotionCard
-                        whileHover={{ scale: 1.02 }}
-                    sx={{ 
-                      position: 'relative',
-                      overflow: 'hidden',
-                          borderRadius: 2,
-                          border: url === existingThumbnailUrl ? `2px solid ${theme.palette.warning.main}` : 'none',
+                    <Box
+                      key={index}
+                      sx={{
+                        position: 'relative',
+                        width: 120,
+                        height: 168,
+                        borderRadius: 2,
+                        overflow: 'hidden',
+                        boxShadow: 3,
+                        border: url === existingThumbnailUrl ? '2px solid #f9a825' : 'none',
+                      }}
+                    >
+                      <img
+                        src={url}
+                        alt={`Card image ${index + 1}`}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'contain',
+                          backgroundColor: 'rgba(0,0,0,0.04)',
+                          cursor: 'pointer'
                         }}
-                      >
-                        <Box
-                          sx={{
-                            position: 'relative',
-                            paddingTop: '140%',
-                            cursor: 'pointer',
-                            '&:hover .image-overlay': {
-                              opacity: 1,
-                            }
-                          }}
-                          onClick={() => handleOpenPreview(url)}
-                  >
-                    <Box 
-                      component="img" 
-                      src={url}
-                      alt={`Card image ${index + 1}`}
-                      sx={{ 
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                        width: '100%', 
-                        height: '100%', 
-                              objectFit: 'cover',
-                            }}
-                          />
-                          
-                          {/* Overlay with actions */}
-                          <Box
-                            className="image-overlay"
-                            sx={{
-                      position: 'absolute',
-                              top: 0,
-                      left: 0,
-                      right: 0,
-                              bottom: 0,
-                              background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 100%)',
-                              opacity: 0,
-                              transition: 'opacity 0.3s ease',
-                      display: 'flex',
-                              flexDirection: 'column',
-                      justifyContent: 'space-between',
-                              p: 1,
-                            }}
-                          >
-                            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
-                      <Tooltip title={url === existingThumbnailUrl ? "Current thumbnail" : "Set as thumbnail"}>
-                        <IconButton 
-                          size="small"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleSelectAsThumbnail(url);
-                                  }}
-                          sx={{
-                                    backgroundColor: 'rgba(0,0,0,0.5)',
-                                    color: '#fff',
-                            '&:hover': {
-                                      backgroundColor: 'rgba(0,0,0,0.7)',
-                            }
-                          }}
-                        >
-                          {url === existingThumbnailUrl ? (
-                                    <StarIcon fontSize="small" />
-                          ) : (
-                                    <StarBorderIcon fontSize="small" />
-                          )}
-                        </IconButton>
-                      </Tooltip>
-                              <Tooltip title="Remove image">
+                        onClick={() => handleOpenPreview(url)}
+                        onError={(e) => {
+                          console.error('Failed to load image:', url);
+                          e.target.style.backgroundColor = '#f5f5f5';
+                          e.target.alt = 'Failed to load image';
+                        }}
+                      />
+                      
+                      {/* Overlay with actions */}
+                      <Box sx={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        p: 0.75,
+                        background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 70%, rgba(0,0,0,0) 100%)'
+                      }}>
+                        <Tooltip title={url === existingThumbnailUrl ? "Current thumbnail" : "Set as thumbnail"}>
                           <IconButton 
                             size="small"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRemoveImage(url);
-                                  }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelectAsThumbnail(url);
+                            }}
                             sx={{
-                              backgroundColor: 'rgba(0,0,0,0.5)',
-                                    color: '#fff',
+                              backgroundColor: url === existingThumbnailUrl ? 'rgba(249, 168, 37, 0.7)' : 'rgba(0,0,0,0.5)',
+                              color: '#fff',
                               '&:hover': {
-                                      backgroundColor: 'rgba(255,0,0,0.5)',
+                                backgroundColor: url === existingThumbnailUrl ? 'rgba(249, 168, 37, 0.9)' : 'rgba(0,0,0,0.7)',
                               }
                             }}
                           >
-                                  <DeleteIcon fontSize="small" />
+                            {url === existingThumbnailUrl ? (
+                              <StarIcon fontSize="small" />
+                            ) : (
+                              <StarBorderIcon fontSize="small" />
+                            )}
                           </IconButton>
                         </Tooltip>
-                            </Box>
-                            <Box sx={{ textAlign: 'center' }}>
-                              <Chip
-                                icon={<VisibilityIcon />}
-                                label="Click to preview"
+                        <Tooltip title="Remove image">
+                          <IconButton 
                             size="small"
-                            sx={{
-                                  backgroundColor: 'rgba(255,255,255,0.9)',
-                                  fontSize: '0.7rem',
-                                }}
-                              />
-                      </Box>
-                    </Box>
-                  </Box>
-                        
-                        {url === existingThumbnailUrl && (
-                          <Chip
-                            label="Thumbnail"
-                    size="small"
-                            color="warning"
-                    sx={{
-                      position: 'absolute',
-                              bottom: 8,
-                              left: 8,
-                              fontWeight: 600,
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveImage(url);
                             }}
-                          />
-                        )}
-                      </MotionCard>
-                    </Grid>
+                            sx={{
+                              backgroundColor: 'rgba(220,0,0,0.5)',
+                              color: '#fff',
+                              '&:hover': { backgroundColor: 'rgba(220,0,0,0.7)' }
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                      
+                      {url === existingThumbnailUrl && (
+                        <Chip
+                          label="Thumbnail"
+                          size="small"
+                          color="warning"
+                          sx={{
+                            position: 'absolute',
+                            top: 8,
+                            left: 8,
+                            fontWeight: 600,
+                          }}
+                        />
+                      )}
+                    </Box>
                   ))}
-                </Grid>
+                </Box>
             </Box>
           )}
           

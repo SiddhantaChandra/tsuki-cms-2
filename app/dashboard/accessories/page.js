@@ -30,7 +30,7 @@ import { getImageProps } from '@/utils/imageUtils';
 const ITEMS_PER_PAGE = 20;
 
 // Motion wrapper for filter drawer
-const MotionPaper = motion(Paper);
+const MotionPaper = motion.create(Paper);
 
 export default function ModernAccessoriesPage() {
   const supabase = createClient();

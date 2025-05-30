@@ -1,7 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['bcslaoindjadawhkdrhk.supabase.co'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'hjzaqkmrmsoltytsxmup.supabase.co',
+      },
+      {
+        protocol: 'https',
+        hostname: 'unbemrwqevcofbsxrohg.supabase.co',
+      },
+    ],
   },
   eslint: {
     // Disable ESLint during builds to avoid blocking on style issues

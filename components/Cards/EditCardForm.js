@@ -10,10 +10,25 @@ import {
 } from '@mui/material';
 import { createClient } from '@/utils/supabase/client';
 import ImageUpload from '@/components/ImageUpload/ImageUpload';
+import DraggableImageItem from '@/components/ImageUpload/DraggableImageItem';
 import { useToast } from '@/components/UI/Toast';
 import { v4 as uuidv4 } from 'uuid';
 import slugify from 'slugify';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  horizontalListSortingStrategy,
+} from '@dnd-kit/sortable';
 
 // Icons
 import InfoIcon from '@mui/icons-material/Info';
@@ -90,6 +105,14 @@ export default function ModernEditCardForm({ initialCardData, initialCategories,
 
   // Original values for change detection
   const [originalValues, setOriginalValues] = useState({});
+
+  // DND Kit sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Initialize form with existing card data
   useEffect(() => {
@@ -403,6 +426,30 @@ export default function ModernEditCardForm({ initialCardData, initialCategories,
     setImagePreviewOpen(true);
   };
 
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    
+    if (active.id !== over?.id) {
+      setExistingImageUrls((items) => {
+        const oldIndex = items.findIndex(item => item === active.id);
+        const newIndex = items.findIndex(item => item === over.id);
+        
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const newOrder = arrayMove(items, oldIndex, newIndex);
+          
+          // Show toast notification for reorder
+          showToast('Images reordered successfully!', { 
+            severity: 'success',
+            title: 'Reordered'
+          });
+          
+          return newOrder;
+        }
+        return items;
+      });
+    }
+  };
+
   return (
     <Box sx={{ 
       maxWidth: 800, 
@@ -667,109 +714,35 @@ export default function ModernEditCardForm({ initialCardData, initialCategories,
                 <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
                   Current Images
               </Typography>
-                <Box sx={{ 
-                  display: 'flex', 
-                  flexWrap: 'wrap', 
-                  gap: 2
-                }}>
-                {existingImageUrls.map((url, index) => (
-                    <Box
-                      key={index}
-                      sx={{
-                        position: 'relative',
-                        width: 120,
-                        height: 168,
-                        borderRadius: 2,
-                        overflow: 'hidden',
-                        boxShadow: 3,
-                        border: url === existingThumbnailUrl ? '2px solid #f9a825' : 'none',
-                      }}
-                    >
-                      <img
-                        src={url}
-                        alt={`Card image ${index + 1}`}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'contain',
-                          backgroundColor: 'rgba(0,0,0,0.04)',
-                          cursor: 'pointer'
-                        }}
-                        onClick={() => handleOpenPreview(url)}
-                        onError={(e) => {
-                          console.error('Failed to load image:', url);
-                          e.target.style.backgroundColor = '#f5f5f5';
-                          e.target.alt = 'Failed to load image';
-                        }}
-                      />
-                      
-                      {/* Overlay with actions */}
-                      <Box sx={{
-                        position: 'absolute',
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        p: 0.75,
-                        background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 70%, rgba(0,0,0,0) 100%)'
-                      }}>
-                        <Tooltip title={url === existingThumbnailUrl ? "Current thumbnail" : "Set as thumbnail"}>
-                          <IconButton 
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSelectAsThumbnail(url);
-                            }}
-                            sx={{
-                              backgroundColor: url === existingThumbnailUrl ? 'rgba(249, 168, 37, 0.7)' : 'rgba(0,0,0,0.5)',
-                              color: '#fff',
-                              '&:hover': {
-                                backgroundColor: url === existingThumbnailUrl ? 'rgba(249, 168, 37, 0.9)' : 'rgba(0,0,0,0.7)',
-                              }
-                            }}
-                          >
-                            {url === existingThumbnailUrl ? (
-                              <StarIcon fontSize="small" />
-                            ) : (
-                              <StarBorderIcon fontSize="small" />
-                            )}
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Remove image">
-                          <IconButton 
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveImage(url);
-                            }}
-                            sx={{
-                              backgroundColor: 'rgba(220,0,0,0.5)',
-                              color: '#fff',
-                              '&:hover': { backgroundColor: 'rgba(220,0,0,0.7)' }
-                            }}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                      
-                      {url === existingThumbnailUrl && (
-                        <Chip
-                          label="Thumbnail"
-                          size="small"
-                          color="warning"
-                          sx={{
-                            position: 'absolute',
-                            top: 8,
-                            left: 8,
-                            fontWeight: 600,
-                          }}
+                <DndContext 
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext 
+                    items={existingImageUrls}
+                    strategy={horizontalListSortingStrategy}
+                  >
+                    <Box sx={{ 
+                      display: 'flex', 
+                      flexWrap: 'wrap', 
+                      gap: 2
+                    }}>
+                      {existingImageUrls.map((url, index) => (
+                        <DraggableImageItem
+                          key={url}
+                          id={url}
+                          url={url}
+                          index={index}
+                          isThumbnail={url === existingThumbnailUrl}
+                          onSetAsThumbnail={handleSelectAsThumbnail}
+                          onRemoveImage={handleRemoveImage}
+                          onPreviewImage={handleOpenPreview}
                         />
-                      )}
+                      ))}
                     </Box>
-                  ))}
-                </Box>
+                  </SortableContext>
+                </DndContext>
             </Box>
           )}
           

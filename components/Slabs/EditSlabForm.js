@@ -8,6 +8,7 @@ import {
 } from '@mui/material';
 import { createClient } from '@/utils/supabase/client';
 import ImageUpload from '@/components/ImageUpload/ImageUpload';
+import DraggableImageItem from '@/components/ImageUpload/DraggableImageItem';
 import { v4 as uuidv4 } from 'uuid';
 import slugify from 'slugify';
 import StarIcon from '@mui/icons-material/Star';
@@ -20,6 +21,20 @@ import 'react-advanced-cropper/dist/style.css';
 import imageCompression from 'browser-image-compression';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  horizontalListSortingStrategy,
+} from '@dnd-kit/sortable';
 
 // Icons
 import InfoIcon from '@mui/icons-material/Info';
@@ -91,6 +106,14 @@ export default function EditSlabForm({
   const [cropperMaxZoom, setCropperMaxZoom] = useState(3);
   const cropperRef = useRef(null);
   const [croppingImageIndex, setCroppingImageIndex] = useState(null);
+
+  // DND Kit sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     setCategories(initialCategories || []);
@@ -282,9 +305,9 @@ export default function EditSlabForm({
     setExistingThumbnailUrl(imageUrl);
   };
 
-  const handleCropImage = (imageUrl, index) => {
+  const handleCropImage = (imageUrl, imageIndex) => {
+    setCroppingImageIndex(imageIndex);
     setCropperImage(imageUrl);
-    setCroppingImageIndex(index);
     setShowCropper(true);
   };
 
@@ -292,6 +315,7 @@ export default function EditSlabForm({
     setShowCropper(false);
     setCropperImage(null);
     setCroppingImageIndex(null);
+    setCropperZoom(1);
   };
 
   const handleZoomChange = (event, newValue) => {
@@ -372,6 +396,27 @@ export default function EditSlabForm({
 
   const handleClearThumbnail = () => {
     setExistingThumbnailUrl(null);
+  };
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    
+    if (active.id !== over?.id) {
+      setExistingImageUrls((items) => {
+        const oldIndex = items.findIndex(item => item === active.id);
+        const newIndex = items.findIndex(item => item === over.id);
+        
+        if (oldIndex !== -1 && newIndex !== -1) {
+          return arrayMove(items, oldIndex, newIndex);
+        }
+        return items;
+      });
+    }
+  };
+
+  const handleOpenPreview = (imageUrl) => {
+    // Simple preview - could be enhanced with a modal later
+    window.open(imageUrl, '_blank');
   };
 
   const handleSubmit = async (event) => {
@@ -840,91 +885,36 @@ export default function EditSlabForm({
                   <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 500 }}>
                     Current Images:
                   </Typography>
-                  <Box sx={{ 
-                    display: 'flex', 
-                    flexWrap: 'wrap', 
-                    gap: 2
-                  }}>
-                    {existingImageUrls.map((url, index) => (
-                      <Box
-                        key={index}
-                        sx={{
-                          position: 'relative',
-                          width: 120,
-                          height: 168,
-                          borderRadius: 2,
-                          overflow: 'hidden',
-                          boxShadow: 3
-                        }}
-                      >
-                        <img
-                          src={url}
-                          alt={`Slab image ${index + 1}`}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'contain',
-                            border: url === existingThumbnailUrl ? '2px solid #f9a825' : 'none',
-                            backgroundColor: 'rgba(0,0,0,0.04)'
-                          }}
-                        />
-                        <Box sx={{
-                          position: 'absolute',
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          p: 0.75,
-                          background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 70%, rgba(0,0,0,0) 100%)'
-                        }}>
-                          <Tooltip title={url === existingThumbnailUrl ? "Current thumbnail" : "Set as thumbnail"}>
-                            <IconButton 
-                              size="small"
-                              onClick={() => handleSetAsThumbnail(url)}
-                              sx={{
-                                backgroundColor: url === existingThumbnailUrl ? 'rgba(249, 168, 37, 0.7)' : 'rgba(0,0,0,0.5)',
-                                color: '#fff',
-                                '&:hover': {
-                                  backgroundColor: url === existingThumbnailUrl ? 'rgba(249, 168, 37, 0.9)' : 'rgba(0,0,0,0.7)',
-                                }
-                              }}
-                            >
-                              {url === existingThumbnailUrl ? <StarIcon /> : <StarBorderIcon />}
-                            </IconButton>
-                          </Tooltip>
-                          <Box sx={{ display: 'flex', gap: 0.5 }}>
-                            <Tooltip title="Crop image">
-                              <IconButton 
-                                size="small"
-                                onClick={() => handleCropImage(url, index)}
-                                sx={{
-                                  backgroundColor: 'rgba(0,0,0,0.5)',
-                                  color: '#fff',
-                                  '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' }
-                                }}
-                              >
-                                <CropIcon />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Remove image">
-                              <IconButton 
-                                size="small"
-                                onClick={() => handleRemoveImage(url)}
-                                sx={{
-                                  backgroundColor: 'rgba(220,0,0,0.5)',
-                                  color: '#fff',
-                                  '&:hover': { backgroundColor: 'rgba(220,0,0,0.7)' }
-                                }}
-                              >
-                                <DeleteIcon />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                        </Box>
+                  <DndContext 
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext 
+                      items={existingImageUrls}
+                      strategy={horizontalListSortingStrategy}
+                    >
+                      <Box sx={{ 
+                        display: 'flex', 
+                        flexWrap: 'wrap', 
+                        gap: 2
+                      }}>
+                        {existingImageUrls.map((url, index) => (
+                          <DraggableImageItem
+                            key={url}
+                            id={url}
+                            url={url}
+                            index={index}
+                            isThumbnail={url === existingThumbnailUrl}
+                            onSetAsThumbnail={handleSetAsThumbnail}
+                            onRemoveImage={handleRemoveImage}
+                            onPreviewImage={handleOpenPreview}
+                            onCropImage={handleCropImage}
+                          />
+                        ))}
                       </Box>
-                    ))}
-                  </Box>
+                    </SortableContext>
+                  </DndContext>
                 </Box>
               )}
 
@@ -937,8 +927,6 @@ export default function EditSlabForm({
                 bucketName="slabimages" 
                 pathPrefix="slabs" 
                 onUploadComplete={handleImageUploadComplete}
-                targetHeight={320}
-                targetWidth={240}
               />
               
               {uploadedMainImageFiles.length > 0 && (
@@ -1018,7 +1006,8 @@ export default function EditSlabForm({
                 src={cropperImage}
                 className="cropper"
                 stencilProps={{
-                  aspectRatio: 3/4
+                  movable: true,
+                  resizable: true
                 }}
                 stencilComponent={RectangleStencil}
                 defaultSize={{ width: '95%', height: '95%' }}

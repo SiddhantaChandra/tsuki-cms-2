@@ -594,9 +594,6 @@ export default function EditAccessoryForm({ accessory, categories, onSuccess }) 
                 bucketName="cardimages"
                 pathPrefix="accessories"
                 onUploadComplete={handleImageUploadComplete}
-                resetKey={resetImageUploadKey}
-                targetHeight={320}
-                targetWidth={240}
               />
             </Box>
 

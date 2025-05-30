@@ -13,6 +13,21 @@ import Slider from '@mui/material/Slider';
 import { Cropper, RectangleStencil } from 'react-advanced-cropper';
 import 'react-advanced-cropper/dist/style.css';
 import imageCompression from 'browser-image-compression';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  horizontalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import DraggableImageItem from './DraggableImageItem';
 
 const Input = styled('input')({
   display: 'none',
@@ -21,17 +36,22 @@ const Input = styled('input')({
 const PreviewImage = styled('img')({
   width: '100%',
   height: 'auto',
-  maxHeight: '180px',
-  objectFit: 'cover',
+  minHeight: '120px',
+  maxHeight: '200px',
+  objectFit: 'contain',
   borderRadius: '4px',
+  backgroundColor: 'rgba(0,0,0,0.05)',
 });
 
 const ThumbnailPreviewImage = styled('img')({
-  width: '240px',
-  height: '320px',
-  objectFit: 'cover',
+  maxWidth: '300px',
+  maxHeight: '400px',
+  width: 'auto',
+  height: 'auto',
+  objectFit: 'contain',
   borderRadius: '4px',
   border: '1px solid #ccc',
+  backgroundColor: 'rgba(0,0,0,0.05)',
 });
 
 const modalStyle = {
@@ -53,70 +73,20 @@ const modalStyle = {
 };
 
 // Utility function to convert an image file to WebP
-async function convertToWebP(imageFile, targetWidth, targetHeight) {
-  // Create a new function for generating a properly sized image with exact dimensions
-  const createResizedImage = async (file, targetWidth, targetHeight) => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        // Create a canvas with the exact target dimensions
-        const canvas = document.createElement('canvas');
-        canvas.width = targetWidth;
-        canvas.height = targetHeight;
-        const ctx = canvas.getContext('2d');
-        
-        // Calculate source dimensions to maintain 3:4 aspect ratio
-        let sourceX = 0, sourceY = 0, sourceWidth = img.width, sourceHeight = img.height;
-        
-        // Determine crop area based on aspect ratio
-        const targetAspect = targetWidth / targetHeight;
-        if (sourceWidth / sourceHeight > targetAspect) {
-          // Image is wider than target aspect ratio, crop sides
-          sourceWidth = sourceHeight * targetAspect;
-          sourceX = (img.width - sourceWidth) / 2;
-        } else {
-          // Image is taller than target aspect ratio, crop top/bottom
-          sourceHeight = sourceWidth / targetAspect;
-          sourceY = (img.height - sourceHeight) / 2;
-        }
-        
-        // Draw the cropped image onto the canvas, resized to target dimensions
-        ctx.drawImage(
-          img, 
-          sourceX, sourceY, sourceWidth, sourceHeight,
-          0, 0, targetWidth, targetHeight
-        );
-        
-        // Convert to blob
-        canvas.toBlob(blob => {
-          if (!blob) {
-            reject(new Error('Failed to create blob from canvas'));
-            return;
-          }
-          const resizedFile = new File([blob], file.name, { type: 'image/png' });
-          resolve(resizedFile);
-        }, 'image/png', 1.0);
-      };
-      
-      img.onerror = () => reject(new Error('Failed to load image for resizing'));
-      img.src = URL.createObjectURL(file);
-    });
-  };
-
+async function convertToWebP(imageFile, maxSizeMB = 1.5, quality = 0.85) {
   try {
-    // First create a properly sized 900x1200 image (maintain 3:4 ratio)
     console.log(`Original file size: ${(imageFile.size / 1024 / 1024).toFixed(2)} MB, type: ${imageFile.type}`);
-    const resizedImageFile = await createResizedImage(imageFile, targetWidth, targetHeight);
     
-    // Then compress to WebP format for better file size
+    // Compress to WebP format for better file size without enforcing specific dimensions
     const options = {
-      maxSizeMB: 1.5, 
+      maxSizeMB: maxSizeMB, 
       useWebWorker: true,
       fileType: 'image/webp',
-      initialQuality: 0.85,
+      initialQuality: quality,
+      // Removed maxWidthOrHeight to allow any dimensions
     };
     
-    const compressedFile = await imageCompression(resizedImageFile, options);
+    const compressedFile = await imageCompression(imageFile, options);
     console.log(`Compressed WebP file size: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
     
     // Create a new File object with the .webp extension
@@ -185,7 +155,7 @@ async function getCroppedImg(imageSrcOrCanvas, pixelCrop, fileName) {
   }
 }
 
-const ImageUpload = React.forwardRef(({ onUploadComplete, bucketName = 'card_images', pathPrefix = '', resetKey = 0, targetHeight = 1200, targetWidth = 900 }, ref) => {
+const ImageUpload = React.forwardRef(({ onUploadComplete, bucketName = 'card_images', pathPrefix = '', resetKey = 0 }, ref) => {
   // filesWithIds stores { id, file (WebP), previewUrl, originalFile, originalUrl }
   const [filesWithIds, setFilesWithIds] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -197,7 +167,15 @@ const ImageUpload = React.forwardRef(({ onUploadComplete, bucketName = 'card_ima
   const [zoom, setZoom] = useState(1);
   const [minZoom, setMinZoom] = useState(0.1);
   const [maxZoom, setMaxZoom] = useState(3);
-  const aspect = 3 / 4;
+  // Removed fixed aspect ratio - now supports freeform cropping
+
+  // DND Kit sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Reset the component when resetKey changes
   useEffect(() => {
@@ -297,7 +275,7 @@ const ImageUpload = React.forwardRef(({ onUploadComplete, bucketName = 'card_ima
         
         try {
           // Convert to WebP format
-          const webpFile = await convertToWebP(originalFile, targetWidth, targetHeight);
+          const webpFile = await convertToWebP(originalFile);
           
           const id = `file-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
           const originalUrl = URL.createObjectURL(originalFile);
@@ -393,7 +371,7 @@ const ImageUpload = React.forwardRef(({ onUploadComplete, bucketName = 'card_ima
       const croppedFile = await getCroppedImg(canvas, {}, fileName);
       
       // Convert to WebP
-      const webPCroppedFile = await convertToWebP(croppedFile, targetWidth, targetHeight);
+      const webPCroppedFile = await convertToWebP(croppedFile);
       
       // Update the correct file in filesWithIds
       let updatedFiles = filesWithIds.map((item, index) => {
@@ -440,6 +418,31 @@ const ImageUpload = React.forwardRef(({ onUploadComplete, bucketName = 'card_ima
     setFilesWithIds(newFilesWithIds);
     // Call onUploadComplete after sorting
     callOnUploadComplete(); // MODIFIED to use helper
+  };
+
+  // DND handler for image reordering
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    
+    if (active.id !== over?.id) {
+      setFilesWithIds((items) => {
+        const oldIndex = items.findIndex(item => item.id === active.id);
+        const newIndex = items.findIndex(item => item.id === over.id);
+        
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const newOrder = arrayMove(items, oldIndex, newIndex);
+          // Call onUploadComplete after reordering to update parent
+          setTimeout(() => callOnUploadComplete(), 0);
+          return newOrder;
+        }
+        return items;
+      });
+    }
+  };
+
+  const handlePreviewImage = (url) => {
+    // Simple preview - could be enhanced with a modal later
+    window.open(url, '_blank');
   };
 
   // Call onUploadComplete when manualThumbnail changes
@@ -548,58 +551,40 @@ const ImageUpload = React.forwardRef(({ onUploadComplete, bucketName = 'card_ima
 
       {filesWithIds.length > 0 && (
         <Box sx={{ mt: 2 }}>
-          <Typography variant="subtitle1" gutterBottom>Previews:</Typography>
-          <Grid container spacing={2}>
-            {filesWithIds.map((fileWithIdItem, idx) => (
-              <Grid item xs={6} sm={4} md={3} key={fileWithIdItem.id}>
-                <Box sx={{ position: 'relative' }}>
-                  <PreviewImage src={fileWithIdItem.previewUrl} alt={`Preview ${idx + 1}`} />
-                  <Box sx={{ position: 'absolute', top: 5, right: 5, display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    <Button
-                      size="small"
-                      variant="contained"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditImage(idx);
-                      }}
-                      disabled={isProcessing}
-                      sx={{ minWidth: 'auto', p: '2px 5px', fontSize: '0.7rem', mb: 0.5 }}
-                      title="Crop image"
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      size="small"
-                      variant="contained"
-                      color="secondary"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleMakeThumbnail(idx);
-                      }}
-                      disabled={isProcessing}
-                      sx={{ minWidth: 'auto', p: '2px 5px', fontSize: '0.7rem', mb: 0.5 }}
-                    >
-                      Make Thumb
-                    </Button>
-                    <Button
-                      size="small"
-                      color="error"
-                      variant="contained"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        console.log('Remove button clicked, index:', idx);
-                        handleRemoveImage(idx);
-                      }}
-                      disabled={isProcessing}
-                      sx={{ minWidth: 'auto', p: '2px 5px', fontSize: '0.7rem' }}
-                    >
-                      X
-                    </Button>
-                  </Box>
-                </Box>
-              </Grid>
-            ))}
-          </Grid>
+          <Typography variant="subtitle1" gutterBottom>
+            Previews (Drag to Reorder):
+          </Typography>
+          <DndContext 
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext 
+              items={filesWithIds.map(item => item.id)}
+              strategy={horizontalListSortingStrategy}
+            >
+              <Box sx={{ 
+                display: 'flex', 
+                flexWrap: 'wrap', 
+                gap: 2
+              }}>
+                {filesWithIds.map((fileWithIdItem, idx) => (
+                  <DraggableImageItem
+                    key={fileWithIdItem.id}
+                    id={fileWithIdItem.id}
+                    url={fileWithIdItem.previewUrl}
+                    index={idx}
+                    isThumbnail={manualThumbnail?.sourceImageId === fileWithIdItem.id}
+                    onSetAsThumbnail={() => handleMakeThumbnail(idx)}
+                    onRemoveImage={() => handleRemoveImage(idx)}
+                    onPreviewImage={handlePreviewImage}
+                    onCropImage={() => handleEditImage(idx)}
+                    style={{ flexShrink: 0 }}
+                  />
+                ))}
+              </Box>
+            </SortableContext>
+          </DndContext>
         </Box>
       )}
 
@@ -621,7 +606,8 @@ const ImageUpload = React.forwardRef(({ onUploadComplete, bucketName = 'card_ima
                   src={currentCroppingFile.imageSrcForCropper}
                   stencilComponent={RectangleStencil}
                   stencilProps={{
-                    aspectRatio: aspect,
+                    movable: true,
+                    resizable: true,
                   }}
                   onReady={onCropperReady}
                   onChange={onCropperChange}

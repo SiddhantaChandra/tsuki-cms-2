@@ -477,8 +477,6 @@ export default function NewAccessoryForm({ categories }) {
                 pathPrefix="accessories"
                 onUploadComplete={handleImageUploadComplete}
                 resetKey={resetImageUploadKey}
-                targetHeight={320}
-                targetWidth={240}
               />
             </Box>
             

@@ -6,16 +6,12 @@ import {
   Box, Typography, Button, Dialog, DialogActions, DialogContent, DialogContentText, 
   DialogTitle, IconButton, Tooltip, Checkbox, FormControlLabel, Chip, Avatar,
   Card, CardMedia, CardContent, Grid, Fade, Zoom, alpha, useTheme,
-  TablePagination, Menu, MenuItem, Divider, Stack, Badge, Alert, CircularProgress
+  TablePagination, Stack, Badge, Alert, CircularProgress
 } from '@mui/material';
 import Image from 'next/image';
 import Link from 'next/link';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import StarIcon from '@mui/icons-material/Star';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import { createClient } from '@/utils/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -32,8 +28,6 @@ export default function CardsTable({ cards, onCardDeleted, viewMode = 'table' })
   const [isDeleting, setIsDeleting] = useState(false);
   const [forceDelete, setForceDelete] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [selectedCard, setSelectedCard] = useState(null);
   const [hoveredCard, setHoveredCard] = useState(null);
 
   if (!cards || cards.length === 0) {
@@ -64,22 +58,11 @@ export default function CardsTable({ cards, onCardDeleted, viewMode = 'table' })
     );
   }
 
-  const handleMenuOpen = (event, card) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedCard(card);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setSelectedCard(null);
-  };
-
   const handleDeleteClick = (card) => {
     setDeletingCard(card);
     setDeleteDialogOpen(true);
     setDeleteError(null);
     setForceDelete(false);
-    handleMenuClose();
   };
 
   const handleDeleteCancel = () => {
@@ -149,13 +132,6 @@ export default function CardsTable({ cards, onCardDeleted, viewMode = 'table' })
     }
   };
 
-  const handleCopyId = () => {
-    if (selectedCard) {
-      navigator.clipboard.writeText(selectedCard.id);
-      handleMenuClose();
-    }
-  };
-
   const formatPrice = (price) => {
     if (price === null || price === undefined) return 'N/A';
     return new Intl.NumberFormat('en-IN', {
@@ -200,40 +176,35 @@ export default function CardsTable({ cards, onCardDeleted, viewMode = 'table' })
                   background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0)} 0%, ${alpha(theme.palette.primary.main, 0.1)} 100%)`,
                   opacity: hoveredCard === card.id ? 1 : 0,
                   transition: 'opacity 0.3s ease',
-                  pointerEvents: 'none',
+                  pointerEvents: 'none'
                 }
               }}
             >
-              <Box sx={{ position: 'relative', paddingTop: '133.33%' }}>
-                {card.thumbnail_url || (card.image_urls && card.image_urls[0]) ? (
+              {/* Card Image */}
+              <Box sx={{ position: 'relative', height: 200, overflow: 'hidden' }}>
+                {card.thumbnail_url || (card.image_urls && card.image_urls.length > 0) ? (
                   <CardMedia
                     component="img"
+                    height="200"
                     image={card.thumbnail_url || card.image_urls[0]}
                     alt={card.name}
                     sx={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
                       objectFit: 'cover',
+                      transition: 'transform 0.3s ease',
+                      transform: hoveredCard === card.id ? 'scale(1.05)' : 'scale(1)'
                     }}
                   />
                 ) : (
                   <Box
                     sx={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
                       height: '100%',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      backgroundColor: 'grey.200',
+                      backgroundColor: 'grey.100',
                     }}
                   >
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="body2" color="text.secondary">
                       No Image
                     </Typography>
                   </Box>
@@ -248,28 +219,20 @@ export default function CardsTable({ cards, onCardDeleted, viewMode = 'table' })
                     top: 8,
                     right: 8,
                     backgroundColor: alpha(theme.palette.background.paper, 0.9),
-                    backdropFilter: 'blur(8px)',
-                    fontWeight: 'bold',
+                    backdropFilter: 'blur(10px)',
+                    fontWeight: 600,
+                    color: theme.palette.success.main
                   }}
                 />
               </Box>
 
-              <CardContent sx={{ flexGrow: 1, pb: 1 }}>
-                <Typography
-                  variant="subtitle1"
-                  component="h3"
-                  gutterBottom
-                  sx={{
-                    fontWeight: 600,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
+              {/* Card Content */}
+              <CardContent sx={{ flexGrow: 1, p: 2 }}>
+                <Typography variant="h6" component="h3" gutterBottom noWrap>
                   {card.name}
                 </Typography>
                 
-                <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+                <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
                   {card.categories?.name && (
                     <Chip
                       label={card.categories.name}
@@ -278,40 +241,50 @@ export default function CardsTable({ cards, onCardDeleted, viewMode = 'table' })
                       sx={{ fontSize: '0.75rem' }}
                     />
                   )}
+                </Stack>
+
+                <Stack direction="column" spacing={0.5} sx={{ mb: 2 }}>
                   {card.sets?.name && (
-                    <Chip
-                      label={card.sets.name}
-                      size="small"
-                      sx={{ 
-                        fontSize: '0.75rem',
-                        backgroundColor: alpha(theme.palette.secondary.main, 0.1)
-                      }}
-                    />
+                    <Typography variant="body2" color="text.secondary" noWrap>
+                      Set: {card.sets.name}
+                    </Typography>
+                  )}
+                  {card.subsets?.name && (
+                    <Typography variant="caption" color="text.secondary" noWrap>
+                      Subset: {card.subsets.name}
+                    </Typography>
                   )}
                 </Stack>
               </CardContent>
 
-              <Box sx={{ p: 1, pt: 0, display: 'flex', gap: 1 }}>
+              {/* Action Buttons */}
+              <Box sx={{ p: 2, pt: 0 }}>
                 <Button
                   component={Link}
                   href={`/dashboard/cards/${card.id}/edit`}
-                  size="small"
-                  fullWidth
                   variant="outlined"
                   startIcon={<EditIcon />}
+                  size="small"
+                  sx={{ mr: 1 }}
                 >
                   Edit
                 </Button>
-                <IconButton
-                  size="small"
-                  onClick={(e) => handleMenuOpen(e, card)}
-                  sx={{ 
-                    border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
-                    borderRadius: 1
-                  }}
-                >
-                  <MoreVertIcon fontSize="small" />
-                </IconButton>
+                <Tooltip title="Delete Card">
+                  <IconButton
+                    size="small"
+                    onClick={() => handleDeleteClick(card)}
+                    sx={{ 
+                      border: `1px solid ${alpha(theme.palette.error.main, 0.3)}`,
+                      borderRadius: 1,
+                      color: theme.palette.error.main,
+                      '&:hover': {
+                        backgroundColor: alpha(theme.palette.error.main, 0.1)
+                      }
+                    }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               </Box>
             </MotionCard>
           </Grid>
@@ -464,17 +437,18 @@ export default function CardsTable({ cards, onCardDeleted, viewMode = 'table' })
                         </IconButton>
                       </Tooltip>
                       
-                      <Tooltip title="More Options">
+                      <Tooltip title="Delete">
                         <IconButton
                           size="small"
-                          onClick={(e) => handleMenuOpen(e, card)}
+                          onClick={() => handleDeleteClick(card)}
                           sx={{
+                            color: theme.palette.error.main,
                             '&:hover': {
-                              backgroundColor: alpha(theme.palette.text.primary, 0.1)
+                              backgroundColor: alpha(theme.palette.error.main, 0.1)
                             }
                           }}
                         >
-                          <MoreVertIcon fontSize="small" />
+                          <DeleteIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
                     </Stack>
@@ -491,56 +465,6 @@ export default function CardsTable({ cards, onCardDeleted, viewMode = 'table' })
   return (
     <>
       {viewMode === 'grid' ? <GridView /> : <TableView />}
-
-      {/* Actions Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-        PaperProps={{
-          elevation: 3,
-          sx: {
-            minWidth: 180,
-            '& .MuiMenuItem-root': {
-              px: 2,
-              py: 1,
-              borderRadius: 1,
-              mx: 0.5,
-              my: 0.25,
-              transition: 'all 0.2s ease',
-              '&:hover': {
-                backgroundColor: alpha(theme.palette.primary.main, 0.1)
-              }
-            }
-          }
-        }}
-      >
-        <MenuItem component={Link} href={`/dashboard/cards/${selectedCard?.id}/edit`}>
-          <EditIcon fontSize="small" sx={{ mr: 1.5 }} />
-          Edit
-        </MenuItem>
-        <MenuItem onClick={() => console.log('View', selectedCard)}>
-          <VisibilityIcon fontSize="small" sx={{ mr: 1.5 }} />
-          View Details
-        </MenuItem>
-        <MenuItem onClick={handleCopyId}>
-          <ContentCopyIcon fontSize="small" sx={{ mr: 1.5 }} />
-          Copy ID
-        </MenuItem>
-        <Divider sx={{ my: 0.5 }} />
-        <MenuItem 
-          onClick={() => handleDeleteClick(selectedCard)}
-          sx={{
-            color: theme.palette.error.main,
-            '&:hover': {
-              backgroundColor: alpha(theme.palette.error.main, 0.1)
-            }
-          }}
-        >
-          <DeleteIcon fontSize="small" sx={{ mr: 1.5 }} />
-          Delete
-        </MenuItem>
-      </Menu>
 
       {/* Enhanced Delete Dialog */}
       <Dialog

@@ -3,23 +3,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Box, Button, FormControl, Grid, InputLabel, MenuItem, Select, TextField, Typography,
-  CircularProgress, Alert, Card, CardContent, Paper, Chip, useTheme, alpha,
-  Container, Stack, Divider, InputAdornment, Fade
+  CircularProgress, Alert, Card,  Paper, Chip, useTheme, 
+   Stack, Divider, InputAdornment, Fade
 } from '@mui/material';
 import { createClient } from '@/utils/supabase/client';
 import ImageUpload from '@/components/ImageUpload/ImageUpload';
 import { useToast } from '@/components/UI/Toast';
 import { v4 as uuidv4 } from 'uuid';
 import slugify from 'slugify';
-import { getConditionOptions } from '@/utils/cardUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Icons for each section
 import InfoIcon from '@mui/icons-material/Info';
 import CategoryIcon from '@mui/icons-material/Category';
-import CollectionsIcon from '@mui/icons-material/Collections';
-import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import CurrencyRupeeIcon from '@mui/icons-material/CurrencyRupee';
@@ -30,7 +25,6 @@ import LanguageIcon from '@mui/icons-material/Language';
 import ImageIcon from '@mui/icons-material/Image';
 import Link from 'next/link';
 
-// Motion components
 const MotionCard = motion.create(Card);
 const MotionBox = motion.create(Box);
 
@@ -40,14 +34,13 @@ export default function NewCardForm({ initialCategories, onFormSubmitSuccess, lo
   const theme = useTheme();
   const { showToast } = useToast();
 
-  // Form state
   const [name, setName] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSet, setSelectedSet] = useState('');
   const [selectedSubset, setSelectedSubset] = useState('');
   const [price, setPrice] = useState('');
-  const [condition, setCondition] = useState('10'); // Default to Gem Mint (10)
-  const [language, setLanguage] = useState('Japanese'); // Default to Japanese
+  const [condition, setCondition] = useState('10'); 
+  const [language, setLanguage] = useState('Japanese'); 
 
   // Data state
   const [categories, setCategories] = useState(initialCategories || []);

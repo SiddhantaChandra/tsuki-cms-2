@@ -30,7 +30,6 @@ import {
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
 
-// Icons
 import InfoIcon from '@mui/icons-material/Info';
 import CategoryIcon from '@mui/icons-material/Category';
 import CollectionsIcon from '@mui/icons-material/Collections';
@@ -348,7 +347,6 @@ export default function ModernEditCardForm({ initialCardData, initialCategories,
         language: language.trim(),
       };
       
-      // Handle image uploads if new images were provided
       if (hasNewImages) {
         const uploadedImageUrls = [];
         for (const file of uploadedMainImageFiles) {

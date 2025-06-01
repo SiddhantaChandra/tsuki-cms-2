@@ -1,0 +1,468 @@
+/* Traditional Pokemon Game UI Styling */
+
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@400;600;700;800&display=swap');
+
+:root {
+  --pokemon-blue: #3a5998;
+  --pokemon-light-blue: #6890f0;
+  --pokemon-dark-blue: #1e3a8a;
+  --pokemon-yellow: #ffcb05;
+  --pokemon-red: #dc2626;
+  --pokemon-white: #ffffff;
+  --pokemon-black: #000000;
+  --pokemon-gray: #d1d5db;
+  --pokemon-dark-gray: #6b7280;
+  --dialog-bg: #f0f8ff;
+  --dialog-border: #2563eb;
+  --shadow: rgba(0, 0, 0, 0.3);
+}
+
+* {
+  box-sizing: border-box;
+  image-rendering: pixelated;
+}
+
+.pokemon-login-container {
+  min-height: 100vh;
+  background: 
+    url('/image_logo.png'),
+    linear-gradient(135deg, var(--pokemon-blue) 0%, var(--pokemon-light-blue) 100%);
+  background-size: 250px 250px, cover;
+  background-repeat: repeat, no-repeat;
+  background-position: 0 0, center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Orbitron', monospace;
+  position: relative;
+  padding: 20px;
+  animation: backgroundScroll 15s linear infinite;
+}
+
+@keyframes backgroundScroll {
+  0% { background-position: 0 0, center; }
+  100% { background-position: 80px 80px, center; }
+}
+
+/* Background Elements */
+.background-elements {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.pokeball {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(to bottom, var(--pokemon-red) 50%, var(--pokemon-white) 50%);
+  border: 2px solid var(--pokemon-black);
+  animation: traditionalFloat 4s ease-in-out infinite;
+}
+
+.pokeball::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background: var(--pokemon-white);
+  border-radius: 50%;
+  border: 1px solid var(--pokemon-black);
+}
+
+.pokeball-1 {
+  top: 15%;
+  left: 10%;
+  animation-delay: 0s;
+}
+
+.pokeball-2 {
+  top: 70%;
+  right: 15%;
+  animation-delay: 1s;
+}
+
+.pokeball-3 {
+  bottom: 20%;
+  left: 15%;
+  animation-delay: 2s;
+}
+
+@keyframes traditionalFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.lightning, .star {
+  position: absolute;
+  font-size: 16px;
+  color: var(--pokemon-yellow);
+  animation: pixelSparkle 2s ease-in-out infinite;
+  font-family: 'Press Start 2P', monospace;
+}
+
+.lightning-1 { top: 25%; right: 25%; animation-delay: 0s; }
+.lightning-2 { bottom: 35%; left: 20%; animation-delay: 0.5s; }
+.lightning-3 { top: 65%; right: 35%; animation-delay: 1s; }
+.star-1 { top: 20%; left: 75%; animation-delay: 1.5s; }
+.star-2 { bottom: 25%; right: 70%; animation-delay: 2s; }
+.star-3 { top: 50%; left: 5%; animation-delay: 2.5s; }
+.star-4 { bottom: 65%; right: 10%; animation-delay: 3s; }
+
+@keyframes pixelSparkle {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* Floating Logos */
+.floating-logos {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.floating-logo {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  opacity: 0.2;
+  border: 2px solid var(--pokemon-white);
+  border-radius: 8px;
+  animation: gameSprite 8s linear infinite;
+}
+
+.logo-1 { top: -48px; left: 15%; animation-delay: 0s; }
+.logo-2 { top: -48px; left: 35%; animation-delay: 1.5s; }
+.logo-3 { top: -48px; left: 55%; animation-delay: 3s; }
+.logo-4 { top: -48px; left: 75%; animation-delay: 4.5s; }
+.logo-5 { top: -48px; left: 95%; animation-delay: 6s; }
+
+@keyframes gameSprite {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(calc(100vh + 48px)); }
+}
+
+/* Main Login Card - Traditional Pokemon Dialog Box */
+.login-card {
+  position: relative;
+  z-index: 10;
+  background: var(--dialog-bg);
+  border: 4px solid var(--dialog-border);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 
+    inset 2px 2px 0 var(--pokemon-white),
+    inset -2px -2px 0 var(--pokemon-dark-gray),
+    4px 4px 8px var(--shadow);
+  position: relative;
+}
+
+.login-card::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: var(--pokemon-dark-blue);
+  border-radius: 14px;
+  z-index: -1;
+}
+
+.card-header {
+  text-align: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--pokemon-blue);
+}
+
+.main-logo {
+  width: 64px;
+  height: 64px;
+  border: 3px solid var(--pokemon-blue);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  box-shadow: 2px 2px 0 var(--pokemon-dark-blue);
+}
+
+.login-title {
+  margin: 0;
+  font-family: 'Press Start 2P', monospace;
+}
+
+.title-text {
+  display: block;
+  font-size: 12px;
+  color: var(--pokemon-blue);
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+
+.title-glow {
+  display: block;
+  font-size: 8px;
+  color: var(--pokemon-dark-blue);
+  letter-spacing: 2px;
+}
+
+/* Traditional Pokemon Form Styling */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.input-group {
+  position: relative;
+}
+
+.input-wrapper {
+  background: var(--pokemon-white);
+  border: 3px solid var(--pokemon-blue);
+  border-radius: 6px;
+  box-shadow: 
+    inset 1px 1px 0 var(--pokemon-gray),
+    inset -1px -1px 0 var(--pokemon-white);
+}
+
+.input-label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 600;
+  color: var(--pokemon-dark-blue);
+  font-size: 12px;
+  font-family: 'Press Start 2P', monospace;
+  text-transform: uppercase;
+}
+
+.pokemon-input {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-family: 'Orbitron', monospace;
+  font-weight: 600;
+  color: var(--pokemon-black);
+  outline: none;
+}
+
+.pokemon-input:focus {
+  background: #fffef7;
+}
+
+.pokemon-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--pokemon-gray);
+}
+
+/* Traditional Pokemon Error Message */
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: var(--pokemon-red);
+  color: var(--pokemon-white);
+  border: 3px solid var(--pokemon-black);
+  border-radius: 6px;
+  font-weight: 600;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  box-shadow: 
+    inset 1px 1px 0 rgba(255, 255, 255, 0.3),
+    2px 2px 0 var(--pokemon-black);
+}
+
+.error-icon {
+  font-size: 12px;
+}
+
+/* Traditional Pokemon Game Buttons */
+.login-button, .signup-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border: 3px solid var(--pokemon-black);
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: 'Press Start 2P', monospace;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  position: relative;
+  box-shadow: 
+    inset 2px 2px 0 rgba(255, 255, 255, 0.3),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.3),
+    2px 2px 0 var(--pokemon-black);
+}
+
+.login-button {
+  background: linear-gradient(135deg, var(--pokemon-red) 0%, #b91c1c 100%);
+  color: var(--pokemon-white);
+}
+
+.login-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #b91c1c 0%, var(--pokemon-red) 100%);
+  transform: translate(1px, 1px);
+  box-shadow: 
+    inset 2px 2px 0 rgba(255, 255, 255, 0.3),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.3),
+    1px 1px 0 var(--pokemon-black);
+}
+
+.login-button:active {
+  transform: translate(2px, 2px);
+  box-shadow: 
+    inset 2px 2px 0 rgba(0, 0, 0, 0.3),
+    inset -2px -2px 0 rgba(255, 255, 255, 0.3);
+}
+
+.login-button.loading {
+  background: linear-gradient(135deg, var(--pokemon-blue) 0%, var(--pokemon-dark-blue) 100%);
+}
+
+.signup-button {
+  background: linear-gradient(135deg, var(--pokemon-yellow) 0%, #eab308 100%);
+  color: var(--pokemon-black);
+  margin-top: 8px;
+}
+
+.signup-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #eab308 0%, var(--pokemon-yellow) 100%);
+  transform: translate(1px, 1px);
+  box-shadow: 
+    inset 2px 2px 0 rgba(255, 255, 255, 0.3),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.3),
+    1px 1px 0 var(--pokemon-black);
+}
+
+.button-icon {
+  font-size: 8px;
+}
+
+.loading-spinner {
+  width: 12px;
+  height: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: var(--pokemon-white);
+  animation: pixelSpin 1s linear infinite;
+}
+
+@keyframes pixelSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Traditional Pokemon Decorations */
+.card-decorations {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.decoration {
+  position: absolute;
+  font-size: 16px;
+  opacity: 0.3;
+  font-family: 'Press Start 2P', monospace;
+  color: var(--pokemon-blue);
+}
+
+.decoration-1 { top: 8px; right: 8px; }
+.decoration-2 { bottom: 8px; left: 8px; }
+.decoration-3 { top: 50%; left: -8px; }
+.decoration-4 { top: 50%; right: -8px; }
+
+/* Footer Elements */
+.footer-elements {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+}
+
+.footer-logos {
+  display: flex;
+  gap: 16px;
+}
+
+.footer-logo {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--pokemon-white);
+  border-radius: 4px;
+  opacity: 0.4;
+  animation: pixelBounce 3s ease-in-out infinite;
+}
+
+.footer-logo-1 { animation-delay: 0s; }
+.footer-logo-2 { animation-delay: 1.5s; }
+
+@keyframes pixelBounce {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .pokemon-login-container {
+    padding: 12px;
+  }
+  
+  .login-card {
+    padding: 16px;
+    max-width: 320px;
+  }
+  
+  .title-text {
+    font-size: 10px;
+  }
+  
+  .title-glow {
+    font-size: 6px;
+  }
+  
+  .pokemon-input {
+    padding: 10px;
+    font-size: 12px;
+  }
+  
+  .login-button, .signup-button {
+    padding: 10px 16px;
+    font-size: 8px;
+  }
+  
+  .floating-logo {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .pokeball {
+    width: 24px;
+    height: 24px;
+  }
+} 

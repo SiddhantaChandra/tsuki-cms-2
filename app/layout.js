@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "../styles/form-variables.css";
 import ThemeRegistry from './ThemeRegistry';
 import { ColorModeProvider } from '@/context/ThemeContext';
 import { ToastProvider } from '@/components/UI/Toast';

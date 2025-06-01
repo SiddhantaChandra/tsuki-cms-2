@@ -1,16 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  Box, Button, FormControl, Grid, InputLabel, MenuItem, Select, TextField, Typography,
-  CircularProgress, Alert, useTheme, alpha, IconButton, Tooltip, Card, CardContent,
-  Stack, Chip, Divider, Dialog, DialogTitle, DialogContent, DialogActions,
-  Paper, InputAdornment, Badge, Zoom, Fade, Collapse,
-  List, ListItem, ListItemIcon, ListItemText, LinearProgress
-} from '@mui/material';
 import { createClient } from '@/utils/supabase/client';
 import ImageUpload from '@/components/ImageUpload/ImageUpload';
-import DraggableImageItem from '@/components/ImageUpload/DraggableImageItem';
 import { useToast } from '@/components/UI/Toast';
 import { v4 as uuidv4 } from 'uuid';
 import slugify from 'slugify';
@@ -28,66 +20,46 @@ import {
   sortableKeyboardCoordinates,
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
+import SortableItem from '@/components/UI/SortableItem';
+import Link from 'next/link';
+import styles from '../Forms/Forms.module.css';
 
-import InfoIcon from '@mui/icons-material/Info';
-import CategoryIcon from '@mui/icons-material/Category';
-import CollectionsIcon from '@mui/icons-material/Collections';
-import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import CurrencyRupeeIcon from '@mui/icons-material/CurrencyRupee';
-import SaveIcon from '@mui/icons-material/Save';
-import StarIcon from '@mui/icons-material/Star';
-import StarBorderIcon from '@mui/icons-material/StarBorder';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import ImageIcon from '@mui/icons-material/Image';
-import HistoryIcon from '@mui/icons-material/History';
-import LanguageIcon from '@mui/icons-material/Language';
-import LocalOfferIcon from '@mui/icons-material/LocalOffer';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import CloseIcon from '@mui/icons-material/Close';
-
-export default function ModernEditCardForm({ initialCardData, initialCategories, onFormSubmitSuccess }) {
+export default function EditCardForm({ card, categories, sets, subsets, onSuccess }) {
   const supabase = createClient();
-  const theme = useTheme();
   const { showToast } = useToast();
 
-  // Form state
-  const [name, setName] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedSet, setSelectedSet] = useState('');
-  const [selectedSubset, setSelectedSubset] = useState('');
-  const [price, setPrice] = useState('');
-  const [condition, setCondition] = useState('');
-  const [language, setLanguage] = useState('Japanese');
+  // Early return if card is not loaded yet
+  if (!card) {
+    return (
+      <div className={styles.formContainer} style={{ textAlign: 'center' }}>
+        <div className={styles.loading}>
+          <div className={styles.spinner}></div>
+          <span>Loading card data...</span>
+        </div>
+      </div>
+    );
+  }
 
-  // Data state
-  const [categories, setCategories] = useState(initialCategories || []);
-  const [sets, setSets] = useState([]);
-  const [subsets, setSubsets] = useState([]);
+  const [name, setName] = useState(card.name || '');
+  const [selectedCategory, setSelectedCategory] = useState(card.category_id || '');
+  const [selectedSet, setSelectedSet] = useState(card.set_id || '');
+  const [selectedSubset, setSelectedSubset] = useState(card.subset_id || '');
+  const [price, setPrice] = useState(card.price ? card.price.toString() : '');
+  const [condition, setCondition] = useState(card.condition || '10');
+  const [language, setLanguage] = useState(card.language || 'Japanese');
+
+  // Image state
+  const [existingImageUrls, setExistingImageUrls] = useState(card.image_urls || []);
+  const [existingThumbnailUrl, setExistingThumbnailUrl] = useState(card.thumbnail_url || '');
+  const [newImages, setNewImages] = useState([]);
+  const [newThumbnailFile, setNewThumbnailFile] = useState(null);
+  const [imagesToDelete, setImagesToDelete] = useState([]);
+  const [resetImageUploadKey, setResetImageUploadKey] = useState(0);
 
   // UI state
   const [loading, setLoading] = useState(false);
-  const [submitError, setSubmitError] = useState(null);
-  const [submitSuccess, setSubmitSuccess] = useState(null);
-  const [hasChanges, setHasChanges] = useState(false);
-  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
-  const [previewImage, setPreviewImage] = useState(null);
+  const [successMessage, setSuccessMessage] = useState('');
 
-  // Image state
-  const [uploadedMainImageFiles, setUploadedMainImageFiles] = useState([]);
-  const [uploadedThumbnailFile, setUploadedThumbnailFile] = useState(null);
-  const [existingImageUrls, setExistingImageUrls] = useState([]);
-  const [existingThumbnailUrl, setExistingThumbnailUrl] = useState(null);
-  const [hasNewImages, setHasNewImages] = useState(false);
-  const [hasNewThumbnail, setHasNewThumbnail] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null);
-
-  // Original values for change detection
-  const [originalValues, setOriginalValues] = useState({});
-
-  // DND Kit sensors
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -95,264 +67,92 @@ export default function ModernEditCardForm({ initialCardData, initialCategories,
     })
   );
 
-  // Initialize form with existing card data
-  useEffect(() => {
-    if (initialCardData) {
-      // Handle image_urls properly - ensure it's an array
-      let imageUrls = [];
-      if (initialCardData.image_urls) {
-        if (Array.isArray(initialCardData.image_urls)) {
-          imageUrls = initialCardData.image_urls;
-        } else if (typeof initialCardData.image_urls === 'string') {
-          // Handle case where it might be a stringified array
-          try {
-            imageUrls = JSON.parse(initialCardData.image_urls);
-          } catch (e) {
-            console.error('Failed to parse image_urls as JSON:', e);
-            imageUrls = [initialCardData.image_urls]; // Treat as single URL
-          }
-        } else {
-          console.warn('Unexpected image_urls format:', initialCardData.image_urls);
-        }
-      }
-
-      const values = {
-        name: initialCardData.name || '',
-        category: initialCardData.category_id || '',
-        set: initialCardData.set_id || '',
-        subset: initialCardData.subset_id || '',
-        price: initialCardData.price ? String(initialCardData.price) : '',
-        condition: initialCardData.condition || '',
-        language: initialCardData.language || 'Japanese',
-        imageUrls: imageUrls,
-        thumbnailUrl: initialCardData.thumbnail_url || null
-      };
-
-      setName(values.name);
-      setSelectedCategory(values.category);
-      setSelectedSet(values.set);
-      setSelectedSubset(values.subset);
-      setPrice(values.price);
-      setCondition(values.condition);
-      setLanguage(values.language);
-      setExistingImageUrls(values.imageUrls);
-      setExistingThumbnailUrl(values.thumbnailUrl);
-      setOriginalValues(values);
-    }
-  }, [initialCardData]);
-
-  // Detect changes
-  useEffect(() => {
-    const currentValues = {
-      name,
-      category: selectedCategory,
-      set: selectedSet,
-      subset: selectedSubset,
-      price,
-      condition,
-      language,
-      imageUrls: existingImageUrls,
-      thumbnailUrl: existingThumbnailUrl
-    };
-
-    const changed = 
-      currentValues.name !== originalValues.name ||
-      currentValues.category !== originalValues.category ||
-      currentValues.set !== originalValues.set ||
-      currentValues.subset !== originalValues.subset ||
-      currentValues.price !== originalValues.price ||
-      currentValues.condition !== originalValues.condition ||
-      currentValues.language !== originalValues.language ||
-      JSON.stringify(currentValues.imageUrls) !== JSON.stringify(originalValues.imageUrls) ||
-      currentValues.thumbnailUrl !== originalValues.thumbnailUrl ||
-      hasNewImages ||
-      hasNewThumbnail;
-
-    setHasChanges(changed);
-  }, [name, selectedCategory, selectedSet, selectedSubset, price, condition, language, 
-      existingImageUrls, existingThumbnailUrl, originalValues, hasNewImages, hasNewThumbnail]);
-
-  // Load sets and subsets
-  useEffect(() => {
-    setCategories(initialCategories || []);
-  }, [initialCategories]);
-
-  useEffect(() => {
-    if (selectedCategory) {
-      const fetchSets = async () => {
-        try {
-          const { data, error } = await supabase.from('sets').select('id, name').eq('category_id', selectedCategory);
-          if (error) throw error;
-          setSets(data || []);
-        } catch (error) {
-          console.error('Error fetching sets:', error);
-        }
-      };
-      fetchSets();
-    } else {
-      setSets([]);
-    }
-  }, [selectedCategory, supabase]);
-
-  useEffect(() => {
-    if (selectedSet) {
-      const fetchSubsets = async () => {
-        try {
-          const { data, error } = await supabase.from('subsets').select('id, name').eq('set_id', selectedSet);
-          if (error) throw error;
-          setSubsets(data || []);
-        } catch (error) {
-          console.error('Error fetching subsets:', error);
-        }
-      };
-      fetchSubsets();
-    } else {
-      setSubsets([]);
-    }
-  }, [selectedSet, supabase]);
-
-  const handleSelectAsThumbnail = async (imageUrl) => {
-    try {
-      setSubmitError(null);
-      setLoading(true);
-
-      const { error: updateError } = await supabase
-        .from('cards')
-        .update({ thumbnail_url: imageUrl })
-        .eq('id', initialCardData.id);
-        
-      if (updateError) throw updateError;
-      
-      setExistingThumbnailUrl(imageUrl);
-      showToast('Thumbnail updated successfully!', { 
-        severity: 'success',
-        title: 'Success'
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (active.id !== over.id) {
+      setExistingImageUrls((items) => {
+        const oldIndex = items.indexOf(active.id);
+        const newIndex = items.indexOf(over.id);
+        return arrayMove(items, oldIndex, newIndex);
       });
-    } catch (err) {
-      const errorMessage = `Failed to update thumbnail: ${err.message}`;
-      setSubmitError(errorMessage);
-      showToast(errorMessage, { 
-        severity: 'error',
-        title: 'Error'
-      });
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleImageUploadComplete = (data) => {
     const { mainImageFiles, thumbnailImageFile } = data;
+    setNewImages(mainImageFiles || []);
+    setNewThumbnailFile(thumbnailImageFile || null);
+  };
+
+  const handleDeleteExistingImage = (imageUrl) => {
+    setExistingImageUrls(prev => prev.filter(url => url !== imageUrl));
+    setImagesToDelete(prev => [...prev, imageUrl]);
     
-    if (mainImageFiles && mainImageFiles.length > 0) {
-      setUploadedMainImageFiles(mainImageFiles);
-      setHasNewImages(true);
-    }
-    
-    if (thumbnailImageFile) {
-      setUploadedThumbnailFile(thumbnailImageFile);
-      setHasNewThumbnail(true);
+    // If deleted image was thumbnail, clear it
+    if (imageUrl === existingThumbnailUrl) {
+      setExistingThumbnailUrl('');
     }
   };
 
-  const handleRemoveImage = async (imageUrl) => {
-    try {
-      setSubmitError(null);
-      setLoading(true);
-      
-      const updatedImageUrls = existingImageUrls.filter(url => url !== imageUrl);
-      const isThumbnail = imageUrl === existingThumbnailUrl;
-      
-      const updateData = {
-        image_urls: updatedImageUrls
-      };
-      
-      if (isThumbnail) {
-        updateData.thumbnail_url = null;
-      }
-      
-      const { error: updateError } = await supabase
-        .from('cards')
-        .update(updateData)
-        .eq('id', initialCardData.id);
-      
-      if (updateError) throw updateError;
-      
-      setExistingImageUrls(updatedImageUrls);
-      if (isThumbnail) {
-        setExistingThumbnailUrl(null);
-      }
-      
-      showToast('Image removed successfully!', { 
-        severity: 'success',
-        title: 'Success'
-      });
-    } catch (err) {
-      const errorMessage = `Failed to remove image: ${err.message}`;
-      setSubmitError(errorMessage);
-      showToast(errorMessage, { 
-        severity: 'error',
-        title: 'Error'
-      });
-    } finally {
-      setLoading(false);
-    }
+  const handleSetExistingThumbnail = (imageUrl) => {
+    setExistingThumbnailUrl(imageUrl);
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setLoading(true); 
-    setSubmitError(null); 
-    setSubmitSuccess(null);
+    setLoading(true);
 
-    // Validations
-    if (!name.trim()) { 
-      setSubmitError('Card Name is required.'); 
-      setLoading(false); 
-      return; 
+    // Validation
+    if (!name.trim()) {
+      showToast('Card Name is required.', { severity: 'error' });
+      setLoading(false);
+      return;
     }
-    
+    if (existingImageUrls.length === 0 && newImages.length === 0) {
+      showToast('At least one image is required.', { severity: 'error' });
+      setLoading(false);
+      return;
+    }
+    if (!existingThumbnailUrl && !newThumbnailFile) {
+      showToast('Thumbnail is required.', { severity: 'error' });
+      setLoading(false);
+      return;
+    }
     const priceValue = parseFloat(price);
-    if (isNaN(priceValue) || priceValue <= 0) { 
-      setSubmitError('Price must be a positive number.'); 
-      setLoading(false); 
-      return; 
+    if (isNaN(priceValue) || priceValue <= 0) {
+      showToast('Price must be a positive number.', { severity: 'error' });
+      setLoading(false);
+      return;
     }
 
     try {
-      const cardData = {
-        name: name.trim(),
-        category_id: selectedCategory,
-        set_id: selectedSet,
-        subset_id: selectedSubset,
-        price: priceValue,
-        condition: condition.trim(),
-        language: language.trim(),
-      };
-      
-      if (hasNewImages) {
-        const uploadedImageUrls = [];
-        for (const file of uploadedMainImageFiles) {
-          const now = new Date();
-          const year = now.getFullYear();
-          const month = (now.getMonth() + 1).toString().padStart(2, '0');
-          const day = now.getDate().toString().padStart(2, '0');
-          const filePath = `cards/${year}/${month}/${day}/${uuidv4()}.webp`;
-          
-          const { error: uploadError } = await supabase.storage
-            .from('cardimages')
-            .upload(filePath, file, { contentType: file.type, upsert: false });
-          
-          if (uploadError) throw uploadError;
-          
-          const { data: { publicUrl } } = supabase.storage.from('cardimages').getPublicUrl(filePath);
-          uploadedImageUrls.push(publicUrl);
-        }
+      const cardName = name.trim();
+      const baseSlug = slugify(cardName, { lower: true, strict: true, remove: /[*+~.()'"!:@]/g });
+      const uniqueId = uuidv4().substring(0, 8);
+      const finalSlug = `${baseSlug}-${uniqueId}`;
+
+      let uploadedNewImageUrls = [];
+      let finalThumbnailUrl = existingThumbnailUrl;
+
+      // Upload new main images
+      for (const file of newImages) {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const day = now.getDate().toString().padStart(2, '0');
+        const filePath = `cards/${year}/${month}/${day}/${uuidv4()}.webp`;
         
-        cardData.image_urls = [...existingImageUrls, ...uploadedImageUrls];
+        const { error: uploadError } = await supabase.storage
+          .from('cardimages')
+          .upload(filePath, file, { contentType: file.type, upsert: false });
+        if (uploadError) throw new Error(`Failed to upload image: ${uploadError.message}`);
+        
+        const { data: { publicUrl } } = supabase.storage.from('cardimages').getPublicUrl(filePath);
+        uploadedNewImageUrls.push(publicUrl);
       }
 
-      // Handle thumbnail upload if a new thumbnail was provided
-      if (hasNewThumbnail && uploadedThumbnailFile) {
+      // Upload new thumbnail if provided
+      if (newThumbnailFile) {
         const now = new Date();
         const year = now.getFullYear();
         const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -361,410 +161,407 @@ export default function ModernEditCardForm({ initialCardData, initialCategories,
 
         const { error: thumbUploadError } = await supabase.storage
           .from('cardimages')
-          .upload(thumbFilePath, uploadedThumbnailFile, { contentType: uploadedThumbnailFile.type, upsert: false });
-          
-        if (thumbUploadError) throw thumbUploadError;
-        
+          .upload(thumbFilePath, newThumbnailFile, { contentType: newThumbnailFile.type, upsert: false });
+        if (thumbUploadError) throw new Error(`Failed to upload thumbnail: ${thumbUploadError.message}`);
         const { data: { publicUrl: thumbPublicUrl } } = supabase.storage.from('cardimages').getPublicUrl(thumbFilePath);
-        cardData.thumbnail_url = thumbPublicUrl;
+        finalThumbnailUrl = thumbPublicUrl;
       }
-      
-      // Update the card in the database
+
+      // Combine existing and new image URLs
+      const allImageUrls = [...existingImageUrls, ...uploadedNewImageUrls];
+
+      const cardData = {
+        name: cardName,
+        slug: finalSlug,
+        image_urls: allImageUrls,
+        thumbnail_url: finalThumbnailUrl,
+        category_id: selectedCategory,
+        set_id: selectedSet || null,
+        subset_id: selectedSubset || null,
+        price: parseFloat(price) || null,
+        condition: condition.trim() || null,
+        language: language.trim() || null,
+      };
+
       const { error: updateError } = await supabase
         .from('cards')
         .update(cardData)
-        .eq('id', initialCardData.id);
-        
-      if (updateError) throw updateError;
+        .eq('id', card.id);
 
-      setSubmitSuccess('Card updated successfully!');
+      if (updateError) throw new Error(`Failed to update card: ${updateError.message}`);
+
+      // Show success toast notification
       showToast('Card updated successfully!', { 
         severity: 'success',
         title: 'Success'
       });
-      
-      if(onFormSubmitSuccess) {
-        setTimeout(() => {
-          onFormSubmitSuccess();
-        }, 1500);
+
+      // Delete old images that were removed
+      if (imagesToDelete.length > 0) {
+        for (const imageUrl of imagesToDelete) {
+          try {
+            const urlPath = new URL(imageUrl).pathname;
+            const filePath = urlPath.split('/').slice(-4).join('/');
+            await supabase.storage.from('cardimages').remove([filePath]);
+          } catch (deleteError) {
+            console.warn('Failed to delete old image:', deleteError);
+          }
+        }
       }
 
-    } catch (err) {
-      const errorMessage = `Operation failed: ${err.message}`;
-      setSubmitError(errorMessage);
+      // Success handling
+      setSuccessMessage('Card updated successfully!');
+      
+      // Reset new upload states
+      setNewImages([]);
+      setNewThumbnailFile(null);
+      setImagesToDelete([]);
+      setResetImageUploadKey(prevKey => prevKey + 1);
+      
+      setTimeout(() => {
+        if (onSuccess && typeof onSuccess === 'function') {
+          onSuccess();
+        }
+      }, 1500);
+
+    } catch (error) {
+      console.error('Error updating card:', error);
+      const errorMessage = error.message || 'An unexpected error occurred while updating the card.';
       showToast(errorMessage, { 
         severity: 'error',
-        title: 'Error'
+        title: 'Error' 
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenPreview = (imageUrl) => {
-    setPreviewImage(imageUrl);
-    setImagePreviewOpen(true);
-  };
-
-  const handleDragEnd = (event) => {
-    const { active, over } = event;
-    
-    if (active.id !== over?.id) {
-      setExistingImageUrls((items) => {
-        const oldIndex = items.findIndex(item => item === active.id);
-        const newIndex = items.findIndex(item => item === over.id);
-        
-        if (oldIndex !== -1 && newIndex !== -1) {
-          const newOrder = arrayMove(items, oldIndex, newIndex);
-          
-          // Show toast notification for reorder
-          showToast('Images reordered successfully!', { 
-            severity: 'success',
-            title: 'Reordered'
-          });
-          
-          return newOrder;
-        }
-        return items;
-      });
-    }
-  };
-
   return (
-    <Box sx={{ 
-      maxWidth: 800, 
-      mx: 'auto', 
-      p: 3,
-    }}>
-      {/* Header */}
-      <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 700, mb: 3 }}>
-        Edit Card
-      </Typography>
-
-      {/* Stats Cards */}
-      <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card
-          >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <ImageIcon color="primary" />
-              <Typography variant="h6">{existingImageUrls.length}</Typography>
-              <Typography variant="body2" color="text.secondary">Images</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <LocalOfferIcon color="success" />
-              <Typography variant="h6">₹{price || '0'}</Typography>
-              <Typography variant="body2" color="text.secondary">Current Price</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <CategoryIcon color="info" />
-              <Typography variant="h6">{categories.find(c => c.id === selectedCategory)?.name || 'N/A'}</Typography>
-              <Typography variant="body2" color="text.secondary">Category</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <EditIcon color="warning" />
-              <Typography variant="h6">{hasChanges ? 'Modified' : 'No Changes'}</Typography>
-              <Typography variant="body2" color="text.secondary">Status</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
+    <div className={styles.formContainer}>
       {/* Form */}
-      <Paper elevation={0} sx={{ borderRadius: 2, overflow: 'hidden' }}>
-        <Box component="form" onSubmit={handleSubmit} sx={{ p: 3 }}>
+      <form onSubmit={handleSubmit} className={styles.form}>
         {/* Basic Information Section */}
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <InfoIcon color="primary" />
-              Basic Information
-            </Typography>
-            
-            <Stack spacing={3}>
-          <TextField
-            fullWidth 
-            label="Card Name" 
-            value={name} 
-            onChange={(e) => setName(e.target.value)}
-            required 
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <LocalOfferIcon color="action" />
-                    </InputAdornment>
-                  ),
-                }}
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h2 className={styles.sectionTitle}>Basic Information</h2>
+          </div>
+          
+          <div className={styles.fieldGroup}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="cardName">
+                Card Name <span className={styles.required}>*</span>
+              </label>
+              <input
+                id="cardName"
+                type="text"
+                className={styles.input}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                placeholder="Enter card name"
               />
+            </div>
 
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Price"
-                    type="number"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    InputProps={{
-                      inputProps: { min: 0, step: "0.01" },
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <CurrencyRupeeIcon color="action" />
-                        </InputAdornment>
-                      ),
-                    }}
-                    required
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth required>
-                    <InputLabel>Language</InputLabel>
-                    <Select
-                      value={language}
-                      label="Language"
-                      onChange={(e) => setLanguage(e.target.value)}
-                      startAdornment={
-                        <InputAdornment position="start">
-                          <LanguageIcon color="action" />
-                        </InputAdornment>
-                      }
-                    >
-                      <MenuItem value="Japanese">Japanese</MenuItem>
-                      <MenuItem value="English">English</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-              </Grid>
+            <div className={styles.row}>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="price">
+                  Price <span className={styles.required}>*</span>
+                </label>
+                <input
+                  id="price"
+                  type="number"
+                  className={styles.input}
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  min="0"
+                  step="0.01"
+                  required
+                  placeholder="0.00"
+                />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="language">
+                  Language <span className={styles.required}>*</span>
+                </label>
+                <select
+                  id="language"
+                  className={styles.select}
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  required
+                >
+                  <option value="Japanese">Japanese</option>
+                  <option value="English">English</option>
+                </select>
+              </div>
+            </div>
 
-              <Box>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Condition
-                </Typography>
-                <FormControl fullWidth required>
-                  <InputLabel>Condition</InputLabel>
-                  <Select
-                    value={condition}
-                    label="Condition"
-                    onChange={(e) => setCondition(e.target.value)}
-                  >
-                    <MenuItem value="10">Gem Mint</MenuItem>
-                    <MenuItem value="9">Mint</MenuItem>
-                    <MenuItem value="8">Near Mint</MenuItem>
-                    <MenuItem value="7">Excellent</MenuItem>
-                    <MenuItem value="6">Good</MenuItem>
-                    <MenuItem value="5">Fair</MenuItem>
-                    <MenuItem value="4">Poor</MenuItem>
-                  </Select>
-                </FormControl>
-              </Box>
-            </Stack>
-        </Box>
-
-          <Divider sx={{ my: 4 }} />
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="condition">
+                Condition <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="condition"
+                className={styles.select}
+                value={condition}
+                onChange={(e) => setCondition(e.target.value)}
+                required
+              >
+                <option value="10">Gem Mint</option>
+                <option value="9">Mint</option>
+                <option value="8">Near Mint</option>
+                <option value="7">Excellent</option>
+                <option value="6">Good</option>
+                <option value="5">Fair</option>
+                <option value="4">Poor</option>
+              </select>
+            </div>
+          </div>
+        </div>
 
         {/* Classification Section */}
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <CategoryIcon color="primary" />
-              Classification
-            </Typography>
-            
-            <Stack spacing={3}>
-              <FormControl fullWidth required>
-                <InputLabel>Category</InputLabel>
-            <Select
-              value={selectedCategory} 
-              label="Category"
-              onChange={(e) => setSelectedCategory(e.target.value)}
-            >
-              <MenuItem value=""><em>Select Category</em></MenuItem>
-                  {categories.map((cat) => (
-                    <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
-                  ))}
-            </Select>
-          </FormControl>
-
-              <FormControl fullWidth required disabled={!selectedCategory}>
-                <InputLabel>Set</InputLabel>
-            <Select
-              value={selectedSet} 
-              label="Set"
-              onChange={(e) => setSelectedSet(e.target.value)}
-            >
-              <MenuItem value=""><em>Select Set</em></MenuItem>
-                  {sets.map((s) => (
-                    <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
-                  ))}
-            </Select>
-          </FormControl>
-
-              <FormControl fullWidth required disabled={!selectedSet}>
-                <InputLabel>Subset</InputLabel>
-            <Select
-              value={selectedSubset} 
-              label="Subset"
-              onChange={(e) => setSelectedSubset(e.target.value)}
-            >
-              <MenuItem value=""><em>Select Subset</em></MenuItem>
-                  {subsets.map((sub) => (
-                    <MenuItem key={sub.id} value={sub.id}>{sub.name}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Stack>
-        </Box>
-
-          <Divider sx={{ my: 4 }} />
-
-          {/* Images Section */}
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <ImageIcon color="primary" />
-              Images & Thumbnail
-              <Badge badgeContent={existingImageUrls.length} color="primary">
-                <Box />
-              </Badge>
-            </Typography>
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            <h2 className={styles.sectionTitle}>Classification</h2>
+          </div>
           
-            {/* Current images grid */}
-            {existingImageUrls.length > 0 && (
-            <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
-                  Current Images
-              </Typography>
-                <DndContext 
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext 
-                    items={existingImageUrls}
-                    strategy={horizontalListSortingStrategy}
-                  >
-                    <Box sx={{ 
-                      display: 'flex', 
-                      flexWrap: 'wrap', 
-                      gap: 2
-                    }}>
-                      {existingImageUrls.map((url, index) => (
-                        <DraggableImageItem
-                          key={url}
-                          id={url}
-                          url={url}
-                          index={index}
-                          isThumbnail={url === existingThumbnailUrl}
-                          onSetAsThumbnail={handleSelectAsThumbnail}
-                          onRemoveImage={handleRemoveImage}
-                          onPreviewImage={handleOpenPreview}
-                        />
-                      ))}
-                    </Box>
-                  </SortableContext>
-                </DndContext>
-            </Box>
-          )}
-          
-            <Divider sx={{ my: 3 }} />
+          <div className={styles.fieldGroup}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="category">
+                Category <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="category"
+                className={styles.select}
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                required
+              >
+                <option value="">Select Category</option>
+                {(categories || []).map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
 
-            {/* Upload new images */}
-            <Box>
-              <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
-                Add New Images
-            </Typography>
-              <Alert severity="info" sx={{ mb: 2 }}>
-                Upload new images to add to the existing collection. New images will be appended, not replaced.
-              </Alert>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="set">
+                Set <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="set"
+                className={styles.select}
+                value={selectedSet}
+                onChange={(e) => setSelectedSet(e.target.value)}
+                required
+              >
+                <option value="">Select Set</option>
+                {(sets || []).map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="subset">
+                Subset <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="subset"
+                className={styles.select}
+                value={selectedSubset}
+                onChange={(e) => setSelectedSubset(e.target.value)}
+                required
+              >
+                <option value="">Select Subset</option>
+                {(subsets || []).map((sub) => (
+                  <option key={sub.id} value={sub.id}>{sub.name} - {sub.slug}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Existing Images Section */}
+        {existingImageUrls.length > 0 && (
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <h2 className={styles.sectionTitle}>Current Images</h2>
+            </div>
+
+            <div className={styles.infoAlert}>
+              Drag and drop images to reorder them. Click actions to delete images.
+            </div>
+
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={existingImageUrls} strategy={horizontalListSortingStrategy}>
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(11.25rem, 1fr))', 
+                  gap: '1rem', 
+                  marginTop: '1rem' 
+                }}>
+                  {existingImageUrls.map((imageUrl) => (
+                    <SortableItem
+                      key={imageUrl}
+                      id={imageUrl}
+                      imageUrl={imageUrl}
+                      isThumbnail={false}
+                      onDelete={handleDeleteExistingImage}
+                      onSetThumbnail={() => {}} // Empty function since we're not using this
+                      style={{
+                        width: '11.25rem',
+                        height: 'auto',
+                      }}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </div>
+        )}
+
+        {/* Current Thumbnail Section */}
+        {existingThumbnailUrl && (
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3l14 0 0 14-14 0zm7 3l-2 0 0 2 2 0zm0 4l-2 0 0 2 2 0z" />
+              </svg>
+              <h2 className={styles.sectionTitle}>Current Thumbnail</h2>
+            </div>
+
+            <div className={styles.infoAlert}>
+              This is the current thumbnail image that represents this card.
+            </div>
+
+            <div style={{ 
+              display: 'flex',
+              justifyContent: 'center',
+              marginTop: '1rem'
+            }}>
+              <div style={{
+                width: '11.25rem',
+                position: 'relative',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                border: '3px solid var(--primary-color)',
+                backgroundColor: 'var(--section-bg)',
+              }}>
+                <img
+                  src={existingThumbnailUrl}
+                  alt="Current Thumbnail"
+                  style={{
+                    width: '100%',
+                    height: 'auto',
+                    display: 'block',
+                    minHeight: '200px',
+                    objectFit: 'contain',
+                    backgroundColor: 'var(--hover-bg)',
+                  }}
+                />
+                <div style={{
+                  position: 'absolute',
+                  top: '8px',
+                  left: '8px',
+                  background: 'linear-gradient(45deg, #fbbf24, #f59e0b)',
+                  color: 'white',
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                  zIndex: 2,
+                }}>
+                  <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                  </svg>
+                  THUMBNAIL
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add New Images Section */}
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <h2 className={styles.sectionTitle}>Add New Images</h2>
+          </div>
+
+          <div className={styles.infoAlert}>
+            Upload additional images for your card. New images will be added to existing ones.
+          </div>
+
+          <div className={styles.imageSection}>
             <ImageUpload
-              key="image-uploader-edit"
               bucketName="cardimages"
               pathPrefix="cards"
               onUploadComplete={handleImageUploadComplete}
+              resetKey={resetImageUploadKey}
             />
+          </div>
           
-          {(uploadedMainImageFiles.length > 0 || uploadedThumbnailFile) && (
-                <Fade in={true}>
-                  <Alert 
-                    severity="success" 
-                    sx={{ mt: 2 }}
-                    icon={<CheckCircleOutlineIcon />}
-                  >
-                    {uploadedMainImageFiles.length > 0 && `${uploadedMainImageFiles.length} new image(s) ready to upload. `}
-                    {uploadedThumbnailFile && 'New thumbnail selected.'}
-                  </Alert>
-                </Fade>
-              )}
-            </Box>
-        </Box>
-
-          {/* Action buttons */}
-          <Divider sx={{ my: 3 }} />
-          <Stack direction="row" spacing={2} justifyContent="flex-end">
-            <Button
-              variant="outlined"
-              onClick={() => window.history.back()}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-          <Button
-            type="submit"
-            variant="contained"
-              disabled={loading || !hasChanges}
-              startIcon={loading ? <CircularProgress size={20} /> : <SaveIcon />}
-            sx={{ 
-                minWidth: 150,
-                background: hasChanges && !loading
-                  ? `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 90%)`
-                  : undefined,
-              }}
-            >
-              {loading ? 'Saving...' : hasChanges ? 'Save Changes' : 'No Changes'}
-          </Button>
-          </Stack>
-        </Box>
-      </Paper>
-
-      {/* Image Preview Dialog */}
-      <Dialog
-        open={imagePreviewOpen}
-        onClose={() => setImagePreviewOpen(false)}
-        maxWidth="md"
-        fullWidth
-        TransitionComponent={Zoom}
-      >
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          Image Preview
-          <IconButton onClick={() => setImagePreviewOpen(false)}>
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent sx={{ p: 0 }}>
-          {previewImage && (
-            <Box
-              component="img"
-              src={previewImage}
-              alt="Preview"
-              sx={{
-                width: '100%',
-                height: 'auto',
-                maxHeight: '80vh',
-                objectFit: 'contain',
-              }}
-            />
+          {newImages.length > 0 && (
+            <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--success-bg)', border: '1px solid var(--success-color)', borderRadius: '6px', color: 'var(--success-color)' }}>
+              {newImages.length} new image(s) ready to upload.
+              {newThumbnailFile 
+                ? ' New thumbnail will replace current one.' 
+                : ''}
+            </div>
           )}
-        </DialogContent>
-      </Dialog>
-          </Box>
+        </div>
+
+        {/* Submit Button */}
+        <div className={styles.buttonGroup}>
+          <button
+            type="button"
+            className={`${styles.button} ${styles.buttonSecondary}`}
+            onClick={() => window.history.back()}
+            disabled={loading}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className={`${styles.button} ${styles.buttonPrimary}`}
+            disabled={loading}
+          >
+            {loading ? (
+              <div className={styles.loading}>
+                <div className={styles.spinner}></div>
+                Updating Card...
+              </div>
+            ) : (
+              <>
+                <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+                Update Card
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 } 

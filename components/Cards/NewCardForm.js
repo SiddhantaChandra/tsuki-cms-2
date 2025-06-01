@@ -1,33 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  Box, Button, FormControl, Grid, InputLabel, MenuItem, Select, TextField, Typography,
-  CircularProgress, Alert, Card,  Paper, Chip, useTheme, 
-   Stack, Divider, InputAdornment, Fade
-} from '@mui/material';
 import { createClient } from '@/utils/supabase/client';
 import ImageUpload from '@/components/ImageUpload/ImageUpload';
 import { useToast } from '@/components/UI/Toast';
 import { v4 as uuidv4 } from 'uuid';
 import slugify from 'slugify';
-
-import InfoIcon from '@mui/icons-material/Info';
-import CategoryIcon from '@mui/icons-material/Category';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import CurrencyRupeeIcon from '@mui/icons-material/CurrencyRupee';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import SaveIcon from '@mui/icons-material/Save';
-import LocalOfferIcon from '@mui/icons-material/LocalOffer';
-import LanguageIcon from '@mui/icons-material/Language';
-import ImageIcon from '@mui/icons-material/Image';
 import Link from 'next/link';
+import styles from '../Forms/Forms.module.css';
 
 export default function NewCardForm({ initialCategories, onFormSubmitSuccess, loadingCategories, categoryError }) {
   console.log('[NewCardForm] Function body execution (render start). LoadingCategories:', loadingCategories, 'CategoryError:', categoryError);
   const supabase = createClient();
-  const theme = useTheme();
   const { showToast } = useToast();
 
   const [name, setName] = useState('');
@@ -47,7 +31,7 @@ export default function NewCardForm({ initialCategories, onFormSubmitSuccess, lo
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(null);
-  const [resetImageUploadKey, setResetImageUploadKey] = useState(0); // Key to trigger reset of ImageUpload
+  const [resetImageUploadKey, setResetImageUploadKey] = useState(0);
 
   const [uploadedMainImageFiles, setUploadedMainImageFiles] = useState([]);
   const [uploadedThumbnailFile, setUploadedThumbnailFile] = useState(null);
@@ -276,8 +260,8 @@ export default function NewCardForm({ initialCategories, onFormSubmitSuccess, lo
       setSelectedSet(''); 
       setSelectedSubset(''); 
       setPrice(''); 
-      setCondition(''); 
-      setLanguage('');
+      setCondition('10'); // Reset to Gem Mint (default)
+      setLanguage('Japanese'); // Reset to Japanese (default)
       
       // Reset image upload state
       setUploadedMainImageFiles([]); 
@@ -308,276 +292,242 @@ export default function NewCardForm({ initialCategories, onFormSubmitSuccess, lo
 
   if (loadingCategories) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 5 }}>
-        <CircularProgress />
-        <Typography sx={{ mt: 2 }}>Loading form data...</Typography>
-      </Box>
+      <div className={styles.formContainer} style={{ textAlign: 'center' }}>
+        <div className={styles.loading}>
+          <div className={styles.spinner}></div>
+          <span>Loading form data...</span>
+        </div>
+      </div>
     );
   }
 
   if (categoryError) {
     return (
-      <Alert 
-        severity="error" 
-        sx={{ mb: 3, mt: 2 }}
-        icon={<ErrorOutlineIcon fontSize="large" />}
-      >
-        {typeof categoryError === 'string' ? categoryError : 'An error occurred while loading essential data for the form.'}
-      </Alert>
+      <div className={styles.formContainer}>
+        <div style={{ color: 'var(--error-color)', padding: '1rem', backgroundColor: 'var(--error-bg)', borderRadius: '6px', border: '1px solid var(--error-color)' }}>
+          {typeof categoryError === 'string' ? categoryError : 'An error occurred while loading essential data for the form.'}
+        </div>
+      </div>
     );
   }
 
   return (
-    <Box sx={{ maxWidth: 800, mx: 'auto', p: 3 }}>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
-          Add New Card
-        </Typography>
-        <Button 
-          component={Link} 
-          href="/dashboard/cards" 
-          variant="outlined"
-          startIcon={<ArrowBackIcon />}
-          sx={{ borderRadius: 2 }}
-        >
-          Back to Collection
-        </Button>
-      </Box>
-
-      {/* Loading state */}
-      {loadingCategories && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 5 }}>
-          <CircularProgress />
-          <Typography sx={{ mt: 2 }}>Loading form data...</Typography>
-        </Box>
-      )}
-
-      {/* Error state */}
-      {categoryError && (
-        <Alert 
-          severity="error" 
-          sx={{ mb: 3, mt: 2 }}
-          icon={<ErrorOutlineIcon fontSize="large" />}
-        >
-          {typeof categoryError === 'string' ? categoryError : 'An error occurred while loading essential data for the form.'}
-        </Alert>
-      )}
-
+    <div className={styles.formContainer}>
       {/* Form */}
-      {!loadingCategories && !categoryError && (
-        <Paper elevation={0} sx={{ borderRadius: 2, overflow: 'hidden' }}>
-          <Box component="form" onSubmit={handleSubmit} sx={{ p: 3 }}>
-            {/* Basic Information Section */}
-            <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <InfoIcon color="primary" />
-                Basic Information
-              </Typography>
-              
-              <Stack spacing={3}>
-                <TextField
-                  fullWidth
-                  label="Card Name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <LocalOfferIcon color="action" />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Price"
-                      type="number"
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                      InputProps={{
-                        inputProps: { min: 0, step: "0.01" },
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <CurrencyRupeeIcon color="action" />
-                          </InputAdornment>
-                        ),
-                      }}
-                      required
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth required>
-                      <InputLabel>Language</InputLabel>
-                      <Select
-                        value={language}
-                        label="Language"
-                        onChange={(e) => setLanguage(e.target.value)}
-                        startAdornment={
-                          <InputAdornment position="start">
-                            <LanguageIcon color="action" />
-                          </InputAdornment>
-                        }
-                      >
-                        <MenuItem value="Japanese">Japanese</MenuItem>
-                        <MenuItem value="English">English</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                </Grid>
-
-                <Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Condition
-                  </Typography>
-                  <FormControl fullWidth required>
-                    <InputLabel>Condition</InputLabel>
-                    <Select
-                      value={condition}
-                      label="Condition"
-                      onChange={(e) => setCondition(e.target.value)}
-                    >
-                      <MenuItem value="10">Gem Mint</MenuItem>
-                      <MenuItem value="9">Mint</MenuItem>
-                      <MenuItem value="8">Near Mint</MenuItem>
-                      <MenuItem value="7">Excellent</MenuItem>
-                      <MenuItem value="6">Good</MenuItem>
-                      <MenuItem value="5">Fair</MenuItem>
-                      <MenuItem value="4">Poor</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Box>
-              </Stack>
-            </Box>
-
-            <Divider sx={{ my: 4 }} />
-
-            {/* Classification Section */}
-            <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <CategoryIcon color="primary" />
-                Classification
-              </Typography>
-              
-              <Stack spacing={3}>
-                <FormControl fullWidth required>
-                  <InputLabel>Category</InputLabel>
-                  <Select
-                    value={selectedCategory}
-                    label="Category"
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                  >
-                    <MenuItem value=""><em>Select Category</em></MenuItem>
-                    {categories.map((cat) => (
-                      <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <FormControl fullWidth required disabled={!selectedCategory}>
-                  <InputLabel>Set</InputLabel>
-                  <Select
-                    value={selectedSet}
-                    label="Set"
-                    onChange={(e) => setSelectedSet(e.target.value)}
-                  >
-                    <MenuItem value=""><em>Select Set</em></MenuItem>
-                    {sets.map((s) => (
-                      <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <FormControl fullWidth required disabled={!selectedSet}>
-                  <InputLabel>Subset</InputLabel>
-                  <Select
-                    value={selectedSubset}
-                    label="Subset"
-                    onChange={(e) => setSelectedSubset(e.target.value)}
-                  >
-                    <MenuItem value=""><em>Select Subset</em></MenuItem>
-                    {subsets.map((sub) => (
-                      <MenuItem key={sub.id} value={sub.id}>{sub.name} - {sub.slug}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Stack>
-            </Box>
-
-            <Divider sx={{ my: 4 }} />
-
-            {/* Images Section */}
-            <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <ImageIcon color="primary" />
-                Images & Thumbnail
-              </Typography>
-
-              <Alert severity="info" sx={{ mb: 2 }}>
-                Upload clear images of your card. At least one image and a thumbnail are required.
-              </Alert>
-
-              <ImageUpload
-                bucketName="cardimages"
-                pathPrefix="cards"
-                onUploadComplete={handleImageUploadComplete}
-                resetKey={resetImageUploadKey}
+      <form onSubmit={handleSubmit} className={styles.form}>
+        {/* Basic Information Section */}
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h2 className={styles.sectionTitle}>Basic Information</h2>
+          </div>
+          
+          <div className={styles.fieldGroup}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="cardName">
+                Card Name <span className={styles.required}>*</span>
+              </label>
+              <input
+                id="cardName"
+                type="text"
+                className={styles.input}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                placeholder="Enter card name"
               />
-              
-              {uploadedMainImageFiles.length > 0 && (
-                <Fade in={true}>
-                  <Alert 
-                    severity="success" 
-                    sx={{ mt: 2 }}
-                    icon={<CheckCircleOutlineIcon />}
-                  >
-                    {uploadedMainImageFiles.length} image(s) ready.
-                    {uploadedThumbnailFile 
-                      ? ' Thumbnail is set.' 
-                      : ' Please select a thumbnail using the "Make Thumb" button.'}
-                  </Alert>
-                </Fade>
-              )}
-              
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 2 }}>
-                <Chip label="Upload clear images" size="small" variant="outlined" />
-                <Chip label="Create thumbnail from best image" size="small" variant="outlined" />
-                <Chip label="Add multiple angles if available" size="small" variant="outlined" />
-              </Stack>
-            </Box>
+            </div>
 
-            {/* Submit Button */}
-            <Divider sx={{ my: 3 }} />
-            <Stack direction="row" spacing={2} justifyContent="flex-end">
-              <Button
-                variant="outlined"
-                onClick={() => window.history.back()}
-                disabled={loading}
+            <div className={styles.row}>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="price">
+                  Price <span className={styles.required}>*</span>
+                </label>
+                <input
+                  id="price"
+                  type="number"
+                  className={styles.input}
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  min="0"
+                  step="0.01"
+                  required
+                  placeholder="0.00"
+                />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="language">
+                  Language <span className={styles.required}>*</span>
+                </label>
+                <select
+                  id="language"
+                  className={styles.select}
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  required
+                >
+                  <option value="Japanese">Japanese</option>
+                  <option value="English">English</option>
+                </select>
+              </div>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="condition">
+                Condition <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="condition"
+                className={styles.select}
+                value={condition}
+                onChange={(e) => setCondition(e.target.value)}
+                required
               >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="contained"
-                disabled={loading}
-                startIcon={loading ? <CircularProgress size={20} /> : <SaveIcon />}
-                sx={{
-                  minWidth: 200,
-                  background: !loading
-                    ? `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 90%)`
-                    : undefined,
-                }}
+                <option value="10">Gem Mint</option>
+                <option value="9">Mint</option>
+                <option value="8">Near Mint</option>
+                <option value="7">Excellent</option>
+                <option value="6">Good</option>
+                <option value="5">Fair</option>
+                <option value="4">Poor</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Classification Section */}
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            <h2 className={styles.sectionTitle}>Classification</h2>
+          </div>
+          
+          <div className={styles.fieldGroup}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="category">
+                Category <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="category"
+                className={styles.select}
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                required
               >
-                {loading ? 'Adding Card...' : 'Add Card to Collection'}
-              </Button>
-            </Stack>
-          </Box>
-        </Paper>
-      )}
-    </Box>
+                <option value="">Select Category</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="set">
+                Set <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="set"
+                className={styles.select}
+                value={selectedSet}
+                onChange={(e) => setSelectedSet(e.target.value)}
+                disabled={!selectedCategory}
+                required
+              >
+                <option value="">Select Set</option>
+                {sets.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="subset">
+                Subset <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="subset"
+                className={styles.select}
+                value={selectedSubset}
+                onChange={(e) => setSelectedSubset(e.target.value)}
+                disabled={!selectedSet}
+                required
+              >
+                <option value="">Select Subset</option>
+                {subsets.map((sub) => (
+                  <option key={sub.id} value={sub.id}>{sub.name} - {sub.slug}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Images Section */}
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <h2 className={styles.sectionTitle}>Images & Thumbnail</h2>
+          </div>
+
+          <div className={styles.infoAlert}>
+            Upload clear images of your card. At least one image and a thumbnail are required.
+          </div>
+
+          <div className={styles.imageSection}>
+            <ImageUpload
+              bucketName="cardimages"
+              pathPrefix="cards"
+              onUploadComplete={handleImageUploadComplete}
+              resetKey={resetImageUploadKey}
+            />
+          </div>
+          
+          {uploadedMainImageFiles.length > 0 && (
+            <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--success-bg)', border: '1px solid var(--success-color)', borderRadius: '6px', color: 'var(--success-color)' }}>
+              {uploadedMainImageFiles.length} image(s) ready.
+              {uploadedThumbnailFile 
+                ? ' Thumbnail is set.' 
+                : ' Please select a thumbnail using the "Make Thumb" button.'}
+            </div>
+          )}
+        </div>
+
+        {/* Submit Button */}
+        <div className={styles.buttonGroup}>
+          <button
+            type="button"
+            className={`${styles.button} ${styles.buttonSecondary}`}
+            onClick={() => window.history.back()}
+            disabled={loading}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className={`${styles.button} ${styles.buttonPrimary}`}
+            disabled={loading}
+          >
+            {loading ? (
+              <div className={styles.loading}>
+                <div className={styles.spinner}></div>
+                Adding Card...
+              </div>
+            ) : (
+              <>
+                <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+                Add Card to Collection
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 } 

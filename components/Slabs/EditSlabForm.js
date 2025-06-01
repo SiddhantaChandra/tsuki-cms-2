@@ -1,27 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  Box, Button, FormControl, Grid, InputLabel, MenuItem, Select, TextField, Typography,
-  CircularProgress, Alert, Divider, IconButton, Tooltip, Modal, Slider, useTheme,
-  Paper, Stack, InputAdornment, Fade
-} from '@mui/material';
+import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import ImageUpload from '@/components/ImageUpload/ImageUpload';
-import DraggableImageItem from '@/components/ImageUpload/DraggableImageItem';
 import { useToast } from '@/components/UI/Toast';
 import { v4 as uuidv4 } from 'uuid';
 import slugify from 'slugify';
-import StarIcon from '@mui/icons-material/Star';
-import StarBorderIcon from '@mui/icons-material/StarBorder';
-import DeleteIcon from '@mui/icons-material/Delete';
-import SaveIcon from '@mui/icons-material/Save';
-import CropIcon from '@mui/icons-material/Crop';
-import { Cropper, RectangleStencil } from 'react-advanced-cropper';
-import 'react-advanced-cropper/dist/style.css';
-import imageCompression from 'browser-image-compression';
-import Link from 'next/link';
-import { motion } from 'framer-motion';
 import {
   DndContext,
   closestCenter,
@@ -36,77 +20,51 @@ import {
   sortableKeyboardCoordinates,
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
+import SortableItem from '@/components/UI/SortableItem';
+import Link from 'next/link';
+import styles from '../Forms/Forms.module.css';
 
-// Icons
-import InfoIcon from '@mui/icons-material/Info';
-import CategoryIcon from '@mui/icons-material/Category';
-import CollectionsIcon from '@mui/icons-material/Collections';
-import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import CurrencyRupeeIcon from '@mui/icons-material/CurrencyRupee';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import LocalOfferIcon from '@mui/icons-material/LocalOffer';
-import LanguageIcon from '@mui/icons-material/Language';
-import ImageIcon from '@mui/icons-material/Image';
-import GradeIcon from '@mui/icons-material/Grade';
-
-export default function EditSlabForm({ 
-    initialSlab,
-    initialCategories, 
-    loadingCategoriesExternal,
-    categoryErrorExternal,
-    onFormSubmitSuccess 
-}) {
+export default function EditSlabForm({ slab, categories, sets, subsets, gradeCompanies, onSuccess }) {
   const supabase = createClient();
-  const theme = useTheme();
   const { showToast } = useToast();
 
-  // Form fields
-  const [name, setName] = useState(initialSlab?.name || '');
-  const [slug, setSlug] = useState(initialSlab?.slug || '');
-  const [selectedCategory, setSelectedCategory] = useState(initialSlab?.category_id || '');
-  const [selectedSet, setSelectedSet] = useState(initialSlab?.set_id || '');
-  const [selectedSubset, setSelectedSubset] = useState(initialSlab?.subset_id || '');
-  const [selectedGradeCompany, setSelectedGradeCompany] = useState(initialSlab?.grade_company_id || '');
-  const [gradeScore, setGradeScore] = useState(initialSlab?.grade_score?.toString() || '');
-  const [condition, setCondition] = useState(initialSlab?.condition || 'perfect');
-  const [language, setLanguage] = useState(initialSlab?.language || 'Japanese');
-  const [price, setPrice] = useState(initialSlab?.price?.toString() || '');
+  // Early return if slab is not loaded yet
+  if (!slab) {
+    return (
+      <div className={styles.formContainer} style={{ textAlign: 'center' }}>
+        <div className={styles.loading}>
+          <div className={styles.spinner}></div>
+          <span>Loading slab data...</span>
+        </div>
+      </div>
+    );
+  }
 
-  // Data for dropdowns
-  const [categories, setCategories] = useState(initialCategories || []);
-  const [sets, setSets] = useState([]);
-  const [subsets, setSubsets] = useState([]);
-  const [gradeCompanies, setGradeCompanies] = useState([]);
-  const [availableGrades, setAvailableGrades] = useState([]); // Grades for the selected company
+  const [name, setName] = useState(slab.name || '');
+  const [selectedCategory, setSelectedCategory] = useState(slab.category_id || '');
+  const [selectedSet, setSelectedSet] = useState(slab.set_id || '');
+  const [selectedSubset, setSelectedSubset] = useState(slab.subset_id || '');
+  const [selectedGradeCompany, setSelectedGradeCompany] = useState(slab.grade_company_id || '');
+  const [gradeScore, setGradeScore] = useState(slab.grade_score || '');
+  const [condition, setCondition] = useState(slab.condition || 'perfect');
+  const [language, setLanguage] = useState(slab.language || 'Japanese');
+  const [price, setPrice] = useState(slab.price ? slab.price.toString() : '');
 
-  // Loading states
-  const [loadingSets, setLoadingSets] = useState(false);
-  const [loadingSubsets, setLoadingSubsets] = useState(false);
-  const [loadingGradeCompanies, setLoadingGradeCompanies] = useState(true);
-  const [formSubmitLoading, setFormSubmitLoading] = useState(false);
-  
-  // Error/Success states
-  const [submitError, setSubmitError] = useState(null);
-  const [submitSuccess, setSubmitSuccess] = useState(null);
+  // Data state
+  const [availableGrades, setAvailableGrades] = useState([]);
 
-  // Image management
-  const [existingImageUrls, setExistingImageUrls] = useState(initialSlab?.image_urls || []);
-  const [existingThumbnailUrl, setExistingThumbnailUrl] = useState(initialSlab?.thumbnail_url || null);
-  const [uploadedMainImageFiles, setUploadedMainImageFiles] = useState([]);
-  const [uploadedThumbnailFile, setUploadedThumbnailFile] = useState(null);
-  const [hasNewImages, setHasNewImages] = useState(false);
-  const [hasNewThumbnail, setHasNewThumbnail] = useState(false);
+  // Image state
+  const [existingImageUrls, setExistingImageUrls] = useState(slab.image_urls || []);
+  const [existingThumbnailUrl, setExistingThumbnailUrl] = useState(slab.thumbnail_url || '');
+  const [newImages, setNewImages] = useState([]);
+  const [newThumbnailFile, setNewThumbnailFile] = useState(null);
   const [imagesToDelete, setImagesToDelete] = useState([]);
+  const [resetImageUploadKey, setResetImageUploadKey] = useState(0);
 
-  // Cropping state
-  const [cropperImage, setCropperImage] = useState(null);
-  const [showCropper, setShowCropper] = useState(false);
-  const cropperRef = useRef(null);
-  const [croppingImageIndex, setCroppingImageIndex] = useState(null);
+  // UI state
+  const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
-  // DND Kit sensors
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -114,109 +72,13 @@ export default function EditSlabForm({
     })
   );
 
-  useEffect(() => {
-    setCategories(initialCategories || []);
-  }, [initialCategories]);
-
-  // Fetch Grade Companies
-  useEffect(() => {
-    const fetchGradeCompanies = async () => {
-      setLoadingGradeCompanies(true);
-      const { data, error } = await supabase.from('grade_companies').select('id, name, grades');
-      if (error) {
-        setSubmitError('Failed to load grading companies: ' + error.message);
-        setGradeCompanies([]);
-      } else {
-        setGradeCompanies(data || []);
-      }
-      setLoadingGradeCompanies(false);
-    };
-    fetchGradeCompanies();
-  }, [supabase]);
-
-  // Fetch Sets when Category changes
-  useEffect(() => {
-    if (selectedCategory) {
-      const fetchSets = async () => {
-        setLoadingSets(true);
-        
-        // Don't clear selectedSet if we're initializing with data from initialSlab
-        const isInitialLoad = selectedCategory === initialSlab?.category_id && 
-                              selectedSet === initialSlab?.set_id;
-        
-        if (!isInitialLoad) {
-          setSets([]);
-          setSelectedSet('');
-          setSubsets([]);
-          setSelectedSubset('');
-        }
-        
-        const { data, error } = await supabase.from('sets').select('id, name').eq('category_id', selectedCategory);
-        if (error) setSubmitError('Failed to load sets: ' + error.message); else setSets(data || []);
-        setLoadingSets(false);
-      };
-      fetchSets();
-    } else {
-      setSets([]); setSelectedSet(''); setSubsets([]); setSelectedSubset('');
-    }
-  }, [selectedCategory, supabase, initialSlab?.category_id, initialSlab?.set_id, selectedSet]);
-
-  // Fetch Subsets when Set changes
-  useEffect(() => {
-    if (selectedSet) {
-      const fetchSubsets = async () => {
-        if (!selectedSet) return;
-        try {
-          setLoadingSubsets(true);
-          
-          // Don't clear selectedSubset if we're initializing with data from initialSlab
-          const isInitialLoad = selectedSet === initialSlab?.set_id && 
-                                selectedSubset === initialSlab?.subset_id;
-          
-          if (!isInitialLoad) {
-            setSubsets([]);
-            setSelectedSubset('');
-          }
-          
-          const { data, error } = await supabase
-            .from('subsets')
-            .select('id, name, slug, release_date')
-            .eq('set_id', selectedSet);
-          if (error) throw error;
-          if (data) {
-            // Sort subsets by release date (newest first), fallback to created_at if no release date
-            const sortedSubsets = [...data].sort((a, b) => {
-              // If both have release dates, compare them
-              if (a.release_date && b.release_date) {
-                return new Date(b.release_date) - new Date(a.release_date); // newest first
-              }
-              // If only one has release date, prioritize the one with release date
-              else if (a.release_date) return -1;
-              else if (b.release_date) return 1;
-              // If neither has release date, keep original order
-              else return 0;
-            });
-            setSubsets(sortedSubsets);
-          }
-        } catch (error) {
-          console.error("Error fetching subsets:", error.message);
-        } finally {
-          setLoadingSubsets(false);
-        }
-      };
-      fetchSubsets();
-    } else {
-      setSubsets([]); setSelectedSubset('');
-    }
-  }, [selectedSet, supabase, initialSlab?.set_id, selectedSubset, initialSlab?.subset_id]);
-
   // Update available grades when grade company changes
   useEffect(() => {
-    if (selectedGradeCompany) {
+    if (selectedGradeCompany && gradeCompanies) {
       const company = gradeCompanies.find(gc => gc.id === selectedGradeCompany);
       setAvailableGrades(company ? company.grades || [] : []);
       if (!gradeScore) {
-        setGradeScore(''); // Only reset grade score if it's not already set
+        setGradeScore(''); // Reset grade score if it's not already set
       }
     } else {
       setAvailableGrades([]);
@@ -224,258 +86,88 @@ export default function EditSlabForm({
     }
   }, [selectedGradeCompany, gradeCompanies, gradeScore]);
 
-  // Load sets and subsets for the initial slab when component mounts
-  useEffect(() => {
-    const loadInitialData = async () => {
-      if (initialSlab && categories.length > 0) {
-        // Load sets if category is selected
-        if (initialSlab.category_id && !sets.length) {
-          try {
-            setLoadingSets(true);
-            const { data: setsData, error: setsError } = await supabase
-              .from('sets')
-              .select('id, name')
-              .eq('category_id', initialSlab.category_id);
-            if (setsError) throw setsError;
-            setSets(setsData || []);
-          } catch (error) {
-            console.error("Error loading initial sets:", error);
-          } finally {
-            setLoadingSets(false);
-          }
-        }
-        
-        // Load subsets if set is selected
-        if (initialSlab.set_id && !subsets.length) {
-          try {
-            setLoadingSubsets(true);
-            const { data: subsetsData, error: subsetsError } = await supabase
-              .from('subsets')
-              .select('id, name, slug, release_date')
-              .eq('set_id', initialSlab.set_id);
-            if (subsetsError) throw subsetsError;
-            if (subsetsData) {
-              const sortedSubsets = [...subsetsData].sort((a, b) => {
-                if (a.release_date && b.release_date) {
-                  return new Date(b.release_date) - new Date(a.release_date);
-                }
-                else if (a.release_date) return -1;
-                else if (b.release_date) return 1;
-                else return 0;
-              });
-              setSubsets(sortedSubsets);
-            }
-          } catch (error) {
-            console.error("Error loading initial subsets:", error);
-          } finally {
-            setLoadingSubsets(false);
-          }
-        }
-      }
-    };
-    
-    loadInitialData();
-  }, [initialSlab, categories, supabase, sets.length, subsets.length]);
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (active.id !== over.id) {
+      setExistingImageUrls((items) => {
+        const oldIndex = items.indexOf(active.id);
+        const newIndex = items.indexOf(over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
 
   const handleImageUploadComplete = (data) => {
     const { mainImageFiles, thumbnailImageFile } = data;
-    setUploadedMainImageFiles(mainImageFiles || []);
-    setUploadedThumbnailFile(thumbnailImageFile || null);
-    setHasNewImages((mainImageFiles || []).length > 0);
-    setHasNewThumbnail(Boolean(thumbnailImageFile));
-    
-    console.log("Image upload complete:", {
-      mainCount: mainImageFiles?.length || 0,
-      hasThumbnail: Boolean(thumbnailImageFile)
-    });
+    setNewImages(mainImageFiles || []);
+    setNewThumbnailFile(thumbnailImageFile || null);
   };
 
-  const handleRemoveImage = (imageUrl) => {
+  const handleDeleteExistingImage = (imageUrl) => {
     setExistingImageUrls(prev => prev.filter(url => url !== imageUrl));
     setImagesToDelete(prev => [...prev, imageUrl]);
     
-    // If the removed image was the thumbnail, clear it
+    // If deleted image was thumbnail, clear it
     if (imageUrl === existingThumbnailUrl) {
-      setExistingThumbnailUrl(null);
+      setExistingThumbnailUrl('');
     }
-  };
-
-  const handleSetAsThumbnail = (imageUrl) => {
-    setExistingThumbnailUrl(imageUrl);
-  };
-
-  const handleCropImage = (imageUrl, imageIndex) => {
-    setCroppingImageIndex(imageIndex);
-    setCropperImage(imageUrl);
-    setShowCropper(true);
-  };
-
-  const handleCloseCropper = () => {
-    setShowCropper(false);
-    setCropperImage(null);
-    setCroppingImageIndex(null);
-  };
-
-  const handleSaveCrop = async () => {
-    if (!cropperRef.current || croppingImageIndex === null) return;
-    
-    setFormSubmitLoading(true);
-    try {
-      const canvas = cropperRef.current.getCanvas();
-      if (!canvas) throw new Error('Failed to get cropped canvas');
-      
-      // Convert canvas to blob
-      const blob = await new Promise(resolve => {
-        canvas.toBlob(resolve, 'image/webp', 0.8);
-      });
-      
-      if (!blob) throw new Error('Failed to create blob from canvas');
-      
-      // Compress the image
-      const compressedFile = await imageCompression(blob, {
-        maxSizeMB: 1,
-        maxWidthOrHeight: 1024,
-        useWebWorker: true,
-      });
-      
-      // Upload the cropped image
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = (now.getMonth() + 1).toString().padStart(2, '0');
-      const day = now.getDate().toString().padStart(2, '0');
-      const filePath = `slabs/${year}/${month}/${day}/${uuidv4()}_cropped.webp`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('slabimages')
-        .upload(filePath, compressedFile, { 
-          contentType: 'image/webp',
-          upsert: false 
-        });
-      
-      if (uploadError) throw uploadError;
-      
-      const { data: { publicUrl } } = supabase.storage
-        .from('slabimages')
-        .getPublicUrl(filePath);
-      
-      // Replace the original image with the cropped one
-      const oldImageUrl = existingImageUrls[croppingImageIndex];
-      setExistingImageUrls(prev => {
-        const newUrls = [...prev];
-        newUrls[croppingImageIndex] = publicUrl;
-        return newUrls;
-      });
-      
-      // Update thumbnail if it was the cropped image
-      if (oldImageUrl === existingThumbnailUrl) {
-        setExistingThumbnailUrl(publicUrl);
-      }
-      
-      // Mark old image for deletion
-      setImagesToDelete(prev => [...prev, oldImageUrl]);
-      
-      setSubmitSuccess('Image cropped successfully!');
-      handleCloseCropper();
-      
-    } catch (error) {
-      console.error('Crop error:', error);
-      setSubmitError('Failed to crop image: ' + error.message);
-    } finally {
-      setFormSubmitLoading(false);
-    }
-  };
-
-  const handleClearThumbnail = () => {
-    setExistingThumbnailUrl(null);
-  };
-
-  const handleDragEnd = (event) => {
-    const { active, over } = event;
-    
-    if (active.id !== over?.id) {
-      setExistingImageUrls((items) => {
-        const oldIndex = items.findIndex(item => item === active.id);
-        const newIndex = items.findIndex(item => item === over.id);
-        
-        if (oldIndex !== -1 && newIndex !== -1) {
-          return arrayMove(items, oldIndex, newIndex);
-        }
-        return items;
-      });
-    }
-  };
-
-  const handleOpenPreview = (imageUrl) => {
-    // Simple preview - could be enhanced with a modal later
-    window.open(imageUrl, '_blank');
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setFormSubmitLoading(true);
-    setSubmitError(null);
-    setSubmitSuccess(null);
+    setLoading(true);
+
+    // Validation
+    if (!name.trim()) {
+      showToast('Slab Name is required.', { severity: 'error' });
+      setLoading(false);
+      return;
+    }
+    if (existingImageUrls.length === 0 && newImages.length === 0) {
+      showToast('At least one image is required.', { severity: 'error' });
+      setLoading(false);
+      return;
+    }
+    if (!existingThumbnailUrl && !newThumbnailFile) {
+      showToast('Thumbnail is required.', { severity: 'error' });
+      setLoading(false);
+      return;
+    }
+    const priceValue = parseFloat(price);
+    if (isNaN(priceValue) || priceValue <= 0) {
+      showToast('Price must be a positive number.', { severity: 'error' });
+      setLoading(false);
+      return;
+    }
 
     try {
-      // Validation
-      if (!name.trim()) throw new Error('Slab Name is required.');
-      if (!selectedCategory) throw new Error('Category is required.');
-      if (!selectedSet) throw new Error('Set is required.');
-      if (!selectedSubset) throw new Error('Subset is required.');
-      if (!selectedGradeCompany) throw new Error('Grading Company is required.');
-      if (!gradeScore) throw new Error('Grade Score is required.');
-      if (!condition.trim()) throw new Error('Condition is required.');
-      if (!language.trim()) throw new Error('Language is required.');
-      
-      const priceValue = parseFloat(price);
-      if (isNaN(priceValue) || priceValue <= 0) throw new Error('Price must be a positive number.');
-      
-      // Check if we have at least one image (existing or new)
-      if (existingImageUrls.length === 0 && uploadedMainImageFiles.length === 0) {
-        throw new Error('At least one slab image is required.');
-      }
-      
-      // Check if we have a thumbnail
-      if (!existingThumbnailUrl && !uploadedThumbnailFile) {
-        throw new Error('Thumbnail is required.');
-      }
-
       const slabName = name.trim();
-      const baseSlug = slugify(slabName, { lower: true, strict: true, remove: /[*+~.()\'\"!:@]/g });
+      const baseSlug = slugify(slabName, { lower: true, strict: true, remove: /[*+~.()'"!:@]/g });
       const uniqueId = uuidv4().substring(0, 8);
-      const finalSlug = slug || `${baseSlug}-${uniqueId}`;
+      const finalSlug = `${baseSlug}-${uniqueId}`;
 
-      let finalImageUrls = [...existingImageUrls];
+      let uploadedNewImageUrls = [];
       let finalThumbnailUrl = existingThumbnailUrl;
 
-      // Upload new main images if any
-      if (uploadedMainImageFiles.length > 0) {
-        for (const uploadedMainImageFile of uploadedMainImageFiles) {
-          const now = new Date();
-          const year = now.getFullYear();
-          const month = (now.getMonth() + 1).toString().padStart(2, '0');
-          const day = now.getDate().toString().padStart(2, '0');
-          const filePath = `slabs/${year}/${month}/${day}/${uuidv4()}.webp`;
-          
-          const { error: uploadError } = await supabase.storage
-            .from('slabimages')
-            .upload(filePath, uploadedMainImageFile, { 
-              contentType: uploadedMainImageFile.type,
-              upsert: false 
-            });
-          
-          if (uploadError) throw new Error('Failed to upload main image: ' + uploadError.message);
-          
-          const { data: { publicUrl } } = supabase.storage
-            .from('slabimages')
-            .getPublicUrl(filePath);
-          
-          finalImageUrls.push(publicUrl);
-        }
+      // Upload new main images
+      for (const file of newImages) {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const day = now.getDate().toString().padStart(2, '0');
+        const filePath = `slabs/${year}/${month}/${day}/${uuidv4()}.webp`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('slabimages')
+          .upload(filePath, file, { contentType: file.type, upsert: false });
+        if (uploadError) throw new Error(`Failed to upload image: ${uploadError.message}`);
+        
+        const { data: { publicUrl } } = supabase.storage.from('slabimages').getPublicUrl(filePath);
+        uploadedNewImageUrls.push(publicUrl);
       }
 
       // Upload new thumbnail if provided
-      if (uploadedThumbnailFile) {
+      if (newThumbnailFile) {
         const now = new Date();
         const year = now.getFullYear();
         const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -484,42 +176,36 @@ export default function EditSlabForm({
 
         const { error: thumbUploadError } = await supabase.storage
           .from('slabimages')
-          .upload(thumbFilePath, uploadedThumbnailFile, { 
-            contentType: uploadedThumbnailFile.type,
-            upsert: false 
-          });
-        
-        if (thumbUploadError) throw new Error('Failed to upload thumbnail: ' + thumbUploadError.message);
-        
-        const { data: { publicUrl: thumbPublicUrl } } = supabase.storage
-          .from('slabimages')
-          .getPublicUrl(thumbFilePath);
-        
+          .upload(thumbFilePath, newThumbnailFile, { contentType: newThumbnailFile.type, upsert: false });
+        if (thumbUploadError) throw new Error(`Failed to upload thumbnail: ${thumbUploadError.message}`);
+        const { data: { publicUrl: thumbPublicUrl } } = supabase.storage.from('slabimages').getPublicUrl(thumbFilePath);
         finalThumbnailUrl = thumbPublicUrl;
       }
 
-      // Update slab data
+      // Combine existing and new image URLs
+      const allImageUrls = [...existingImageUrls, ...uploadedNewImageUrls];
+
       const slabData = {
         name: slabName,
         slug: finalSlug,
-        image_urls: finalImageUrls,
+        image_urls: allImageUrls,
         thumbnail_url: finalThumbnailUrl,
         category_id: selectedCategory,
-        set_id: selectedSet,
-        subset_id: selectedSubset,
-        grade_company_id: selectedGradeCompany,
-        grade_score: parseFloat(gradeScore),
-        condition: condition.trim(),
-        language: language.trim(),
-        price: priceValue,
+        set_id: selectedSet || null,
+        subset_id: selectedSubset || null,
+        grade_company_id: selectedGradeCompany || null,
+        grade_score: gradeScore || null,
+        condition: condition.trim() || null,
+        language: language.trim() || null,
+        price: parseFloat(price) || null,
       };
 
       const { error: updateError } = await supabase
         .from('slabs')
         .update(slabData)
-        .eq('id', initialSlab.id);
+        .eq('id', slab.id);
 
-      if (updateError) throw new Error('Failed to update slab: ' + updateError.message);
+      if (updateError) throw new Error(`Failed to update slab: ${updateError.message}`);
 
       // Show success toast notification
       showToast('Slab updated successfully!', { 
@@ -532,7 +218,7 @@ export default function EditSlabForm({
         for (const imageUrl of imagesToDelete) {
           try {
             const urlPath = new URL(imageUrl).pathname;
-            const filePath = urlPath.split('/').slice(-4).join('/'); // Extract the path after bucket name
+            const filePath = urlPath.split('/').slice(-4).join('/');
             await supabase.storage.from('slabimages').remove([filePath]);
           } catch (deleteError) {
             console.warn('Failed to delete old image:', deleteError);
@@ -540,507 +226,404 @@ export default function EditSlabForm({
         }
       }
 
-      setSubmitSuccess('Slab updated successfully!');
+      // Success handling
+      setSuccessMessage('Slab updated successfully!');
       
-      // Reset states
-      setUploadedMainImageFiles([]);
-      setUploadedThumbnailFile(null);
-      setHasNewImages(false);
-      setHasNewThumbnail(false);
+      // Reset new upload states
+      setNewImages([]);
+      setNewThumbnailFile(null);
       setImagesToDelete([]);
+      setResetImageUploadKey(prevKey => prevKey + 1);
       
-      if (onFormSubmitSuccess) onFormSubmitSuccess();
+      setTimeout(() => {
+        if (onSuccess && typeof onSuccess === 'function') {
+          onSuccess();
+        }
+      }, 1500);
 
-    } catch (err) {
-      const errorMessage = err.message;
-      setSubmitError(errorMessage);
+    } catch (error) {
+      console.error('Error updating slab:', error);
+      const errorMessage = error.message || 'An unexpected error occurred while updating the slab.';
       showToast(errorMessage, { 
         severity: 'error',
         title: 'Error' 
       });
-      console.error("Submit Error Details:", err);
     } finally {
-      setFormSubmitLoading(false);
+      setLoading(false);
     }
   };
-
-  const ImageWithFallback = ({ src, alt, ...props }) => {
-    const [error, setError] = useState(false);
-    const [loading, setLoading] = useState(true);
-
-    if (error) {
-      return (
-        <Box
-          sx={{
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(0,0,0,0.1)',
-            color: 'text.secondary',
-            ...props.sx
-          }}
-        >
-          <Typography variant="caption">Image not found</Typography>
-        </Box>
-      );
-    }
-
-    return (
-      <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
-        {loading && (
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'rgba(0,0,0,0.1)',
-            }}
-          >
-            <CircularProgress size={24} />
-          </Box>
-        )}
-        <Box
-          component="img"
-          src={src}
-          alt={alt}
-          onLoad={() => setLoading(false)}
-          onError={() => {
-            setLoading(false);
-            setError(true);
-          }}
-          sx={{
-            opacity: loading ? 0 : 1,
-            transition: 'opacity 0.3s',
-            ...props.sx
-          }}
-        />
-      </Box>
-    );
-  };
-
-  if (loadingCategoriesExternal) {
-    return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 5 }}>
-        <CircularProgress />
-        <Typography sx={{ mt: 2 }}>Loading category data from parent...</Typography>
-      </Box>
-    );
-  }
-
-  if (categoryErrorExternal) {
-    return (
-      <Alert severity="error" sx={{ mb: 3, mt: 2 }}>
-        {typeof categoryErrorExternal === 'string' ? categoryErrorExternal : 'Error loading categories from parent.'}
-      </Alert>
-    );
-  }
 
   return (
-    <Box sx={{ maxWidth: 900, mx: 'auto', p: 3 }}>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
-          Edit Slab
-        </Typography>
-        <Button 
-          component={Link} 
-          href="/dashboard/slabs" 
-          variant="outlined"
-          startIcon={<ArrowBackIcon />}
-          sx={{ borderRadius: 2 }}
-        >
-          Back to Slabs
-        </Button>
-      </Box>
-
-      {/* Loading state */}
-      {loadingCategoriesExternal && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 5 }}>
-          <CircularProgress />
-          <Typography sx={{ mt: 2 }}>Loading category data from parent...</Typography>
-        </Box>
-      )}
-
-      {/* Error state */}
-      {categoryErrorExternal && (
-        <Alert severity="error" sx={{ mb: 3, mt: 2 }}>
-          {typeof categoryErrorExternal === 'string' ? categoryErrorExternal : 'Error loading categories from parent.'}
-        </Alert>
-      )}
-
+    <div className={styles.formContainer}>
       {/* Form */}
-      {!loadingCategoriesExternal && !categoryErrorExternal && (
-        <Paper elevation={0} sx={{ borderRadius: 2, overflow: 'hidden' }}>
-          <Box component="form" onSubmit={handleSubmit} sx={{ p: 3 }}>
-            {/* Basic Information Section */}
-            <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <InfoIcon color="primary" />
-                Basic Information
-              </Typography>
-              
-              <Stack spacing={3}>
-                <TextField
-                  fullWidth
-                  label="Slab Name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+      <form onSubmit={handleSubmit} className={styles.form}>
+        {/* Basic Information Section */}
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h2 className={styles.sectionTitle}>Basic Information</h2>
+          </div>
+          
+          <div className={styles.fieldGroup}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="slabName">
+                Slab Name <span className={styles.required}>*</span>
+              </label>
+              <input
+                id="slabName"
+                type="text"
+                className={styles.input}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                placeholder="Enter slab name"
+              />
+            </div>
+
+            <div className={styles.row}>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="price">
+                  Price <span className={styles.required}>*</span>
+                </label>
+                <input
+                  id="price"
+                  type="number"
+                  className={styles.input}
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  min="0"
+                  step="0.01"
                   required
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <LocalOfferIcon color="action" />
-                      </InputAdornment>
-                    ),
+                  placeholder="0.00"
+                />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="language">
+                  Language <span className={styles.required}>*</span>
+                </label>
+                <select
+                  id="language"
+                  className={styles.select}
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  required
+                >
+                  <option value="Japanese">Japanese</option>
+                  <option value="English">English</option>
+                </select>
+              </div>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="condition">
+                Condition <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="condition"
+                className={styles.select}
+                value={condition}
+                onChange={(e) => setCondition(e.target.value)}
+                required
+              >
+                <option value="perfect">Perfect</option>
+                <option value="scratched">Scratched</option>
+                <option value="damaged">Damaged</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Grading Information Section */}
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+            <h2 className={styles.sectionTitle}>Grading Information</h2>
+          </div>
+          
+          <div className={styles.fieldGroup}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="gradeCompany">
+                Grading Company <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="gradeCompany"
+                className={styles.select}
+                value={selectedGradeCompany}
+                onChange={(e) => setSelectedGradeCompany(e.target.value)}
+                required
+              >
+                <option value="">Select Grading Company</option>
+                {(gradeCompanies || []).map((gc) => (
+                  <option key={gc.id} value={gc.id}>{gc.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="gradeScore">
+                Grade Score <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="gradeScore"
+                className={styles.select}
+                value={gradeScore}
+                onChange={(e) => setGradeScore(e.target.value)}
+                disabled={!selectedGradeCompany || availableGrades.length === 0}
+                required
+              >
+                <option value="">Select Grade Score</option>
+                {availableGrades.map((grade) => (
+                  <option key={grade} value={grade}>{grade}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Classification Section */}
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            <h2 className={styles.sectionTitle}>Classification</h2>
+          </div>
+          
+          <div className={styles.fieldGroup}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="category">
+                Category <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="category"
+                className={styles.select}
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                required
+              >
+                <option value="">Select Category</option>
+                {(categories || []).map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="set">
+                Set <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="set"
+                className={styles.select}
+                value={selectedSet}
+                onChange={(e) => setSelectedSet(e.target.value)}
+                required
+              >
+                <option value="">Select Set</option>
+                {(sets || []).map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="subset">
+                Subset <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="subset"
+                className={styles.select}
+                value={selectedSubset}
+                onChange={(e) => setSelectedSubset(e.target.value)}
+                required
+              >
+                <option value="">Select Subset</option>
+                {(subsets || []).map((sub) => (
+                  <option key={sub.id} value={sub.id}>{sub.name} - {sub.slug}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Existing Images Section */}
+        {existingImageUrls.length > 0 && (
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <h2 className={styles.sectionTitle}>Current Images</h2>
+            </div>
+
+            <div className={styles.infoAlert}>
+              Drag and drop images to reorder them. Click actions to delete images.
+            </div>
+
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={existingImageUrls} strategy={horizontalListSortingStrategy}>
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(11.25rem, 1fr))', 
+                  gap: '1rem', 
+                  marginTop: '1rem' 
+                }}>
+                  {existingImageUrls.map((imageUrl) => (
+                    <SortableItem
+                      key={imageUrl}
+                      id={imageUrl}
+                      imageUrl={imageUrl}
+                      isThumbnail={false}
+                      onDelete={handleDeleteExistingImage}
+                      onSetThumbnail={() => {}} // Empty function since we're not using this
+                      style={{
+                        width: '11.25rem',
+                        height: 'auto',
+                      }}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </div>
+        )}
+
+        {/* Current Thumbnail Section */}
+        {existingThumbnailUrl && (
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3l14 0 0 14-14 0zm7 3l-2 0 0 2 2 0zm0 4l-2 0 0 2 2 0z" />
+              </svg>
+              <h2 className={styles.sectionTitle}>Current Thumbnail</h2>
+            </div>
+
+            <div className={styles.infoAlert}>
+              This is the current thumbnail image that represents this slab.
+            </div>
+
+            <div style={{ 
+              display: 'flex',
+              justifyContent: 'center',
+              marginTop: '1rem'
+            }}>
+              <div style={{
+                width: '11.25rem',
+                position: 'relative',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                border: '3px solid var(--primary-color)',
+                backgroundColor: 'var(--section-bg)',
+              }}>
+                <img
+                  src={existingThumbnailUrl}
+                  alt="Current Thumbnail"
+                  style={{
+                    width: '100%',
+                    height: 'auto',
+                    display: 'block',
+                    minHeight: '200px',
+                    objectFit: 'contain',
+                    backgroundColor: 'var(--hover-bg)',
                   }}
                 />
-
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Price"
-                      type="number"
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                      InputProps={{
-                        inputProps: { min: 0, step: "0.01" },
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <CurrencyRupeeIcon color="action" />
-                          </InputAdornment>
-                        ),
-                      }}
-                      required
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth required>
-                      <InputLabel>Language</InputLabel>
-                      <Select
-                        value={language}
-                        label="Language"
-                        onChange={(e) => setLanguage(e.target.value)}
-                      >
-                        <MenuItem value="Japanese">Japanese</MenuItem>
-                        <MenuItem value="English">English</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                </Grid>
-
-                <FormControl fullWidth required>
-                  <InputLabel>Condition</InputLabel>
-                  <Select
-                    value={condition}
-                    label="Condition"
-                    onChange={(e) => setCondition(e.target.value)}
-                  >
-                    <MenuItem value="perfect">Perfect</MenuItem>
-                    <MenuItem value="scratched">Scratched</MenuItem>
-                    <MenuItem value="damaged">Damaged</MenuItem>
-                  </Select>
-                </FormControl>
-              </Stack>
-            </Box>
-
-            <Divider sx={{ my: 4 }} />
-
-            {/* Grading Information Section */}
-            <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <GradeIcon color="primary" />
-                Grading Information
-              </Typography>
-              
-              <Stack spacing={3}>
-                <FormControl fullWidth required disabled={loadingGradeCompanies}>
-                  <InputLabel>Grading Company</InputLabel>
-                  <Select
-                    value={selectedGradeCompany}
-                    label="Grading Company"
-                    onChange={(e) => setSelectedGradeCompany(e.target.value)}
-                  >
-                    <MenuItem value=""><em>Select Grading Company</em></MenuItem>
-                    {gradeCompanies.map((gc) => (
-                      <MenuItem key={gc.id} value={gc.id}>{gc.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <FormControl fullWidth required disabled={!selectedGradeCompany || availableGrades.length === 0}>
-                  <InputLabel>Grade Score</InputLabel>
-                  <Select
-                    value={gradeScore}
-                    label="Grade Score"
-                    onChange={(e) => setGradeScore(e.target.value)}
-                  >
-                    <MenuItem value=""><em>Select Grade Score</em></MenuItem>
-                    {availableGrades.map((grade) => (
-                      <MenuItem key={grade} value={grade}>{grade}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Stack>
-            </Box>
-
-            <Divider sx={{ my: 4 }} />
-
-            {/* Classification Section */}
-            <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <CategoryIcon color="primary" />
-                Classification
-              </Typography>
-              
-              <Stack spacing={3}>
-                <FormControl fullWidth required>
-                  <InputLabel>Category</InputLabel>
-                  <Select
-                    value={selectedCategory}
-                    label="Category"
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                  >
-                    <MenuItem value=""><em>Select Category</em></MenuItem>
-                    {categories.map((cat) => (
-                      <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <FormControl fullWidth required disabled={!selectedCategory}>
-                  <InputLabel>Set</InputLabel>
-                  <Select
-                    value={selectedSet}
-                    label="Set"
-                    onChange={(e) => setSelectedSet(e.target.value)}
-                  >
-                    <MenuItem value=""><em>Select Set</em></MenuItem>
-                    {sets.map((s) => (
-                      <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <FormControl fullWidth required disabled={!selectedSet}>
-                  <InputLabel>Subset</InputLabel>
-                  <Select
-                    value={selectedSubset}
-                    label="Subset"
-                    onChange={(e) => setSelectedSubset(e.target.value)}
-                  >
-                    <MenuItem value=""><em>Select Subset</em></MenuItem>
-                    {subsets.map((sub) => (
-                      <MenuItem key={sub.id} value={sub.id}>{sub.name} - {sub.slug}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Stack>
-            </Box>
-
-            <Divider sx={{ my: 4 }} />
-
-            {/* Images Section - keeping all existing image functionality */}
-            <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <ImageIcon color="primary" />
-                Images & Thumbnail
-              </Typography>
-
-              {/* Current images display */}
-              {existingImageUrls.length > 0 && (
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 500 }}>
-                    Current Images:
-                  </Typography>
-                  <DndContext 
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <SortableContext 
-                      items={existingImageUrls}
-                      strategy={horizontalListSortingStrategy}
-                    >
-                      <Box sx={{ 
-                        display: 'flex', 
-                        flexWrap: 'wrap', 
-                        gap: 2
-                      }}>
-                        {existingImageUrls.map((url, index) => (
-                          <DraggableImageItem
-                            key={url}
-                            id={url}
-                            url={url}
-                            index={index}
-                            isThumbnail={url === existingThumbnailUrl}
-                            onSetAsThumbnail={handleSetAsThumbnail}
-                            onRemoveImage={handleRemoveImage}
-                            onPreviewImage={handleOpenPreview}
-                            onCropImage={handleCropImage}
-                          />
-                        ))}
-                      </Box>
-                    </SortableContext>
-                  </DndContext>
-                </Box>
-              )}
-
-              {/* Upload new images */}
-              <Alert severity="info" sx={{ mb: 2 }}>
-                Upload new images to replace or add to the current ones (optional)
-              </Alert>
-
-              <ImageUpload 
-                bucketName="slabimages" 
-                pathPrefix="slabs" 
-                onUploadComplete={handleImageUploadComplete}
-              />
-              
-              {uploadedMainImageFiles.length > 0 && (
-                <Fade in={true}>
-                  <Alert 
-                    severity="success" 
-                    sx={{ mt: 2 }}
-                    icon={<CheckCircleOutlineIcon />}
-                  >
-                    {uploadedMainImageFiles.length} new image(s) ready to upload.
-                  </Alert>
-                </Fade>
-              )}
-            </Box>
-
-            {/* Submit Button */}
-            <Divider sx={{ my: 3 }} />
-            <Stack direction="row" spacing={2} justifyContent="flex-end">
-              <Button
-                variant="outlined"
-                onClick={() => window.history.back()}
-                disabled={formSubmitLoading}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="contained"
-                disabled={formSubmitLoading}
-                startIcon={formSubmitLoading ? <CircularProgress size={20} /> : <SaveIcon />}
-                sx={{
-                  minWidth: 200,
-                  background: !formSubmitLoading
-                    ? `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 90%)`
-                    : undefined,
-                }}
-              >
-                {formSubmitLoading ? 'Saving Changes...' : 'Save Changes'}
-              </Button>
-            </Stack>
-          </Box>
-        </Paper>
-      )}
-
-      {/* Image Cropper Modal - updated for full-screen precision cropping */}
-      <Modal
-        open={showCropper}
-        onClose={handleCloseCropper}
-        aria-labelledby="crop-image-modal"
-        aria-describedby="modal-to-crop-card-image"
-      >
-        <Box sx={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          bgcolor: 'background.paper',
-          display: 'flex',
-          flexDirection: 'column',
-          zIndex: 1300,
-          overflow: 'hidden',
-        }}>
-          {/* Header */}
-          <Box sx={{ 
-            p: 2, 
-            borderBottom: 1, 
-            borderColor: 'divider',
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            backgroundColor: 'background.paper'
-          }}>
-            <Typography id="crop-image-modal" variant="h6" component="h2">
-              Crop Image
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button 
-                variant="outlined" 
-                onClick={handleCloseCropper}
-                disabled={formSubmitLoading}
-              >
-                Cancel
-              </Button>
-              <Button 
-                variant="contained" 
-                onClick={handleSaveCrop}
-                disabled={formSubmitLoading}
-                startIcon={formSubmitLoading ? <CircularProgress size={20} /> : <CropIcon />}
-              >
-                {formSubmitLoading ? 'Saving...' : 'Save Crop'}
-              </Button>
-            </Box>
-          </Box>
-
-          {/* Cropper Area */}
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-            {cropperImage && (
-              <Box sx={{ 
-                flex: 1, 
-                minHeight: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                p: 1,
-                overflow: 'hidden'
-              }}>
-                <Box sx={{ 
-                  height: '100%',
-                  width: '100%',
-                  maxHeight: 'calc(100vh - 80px)', // Account for header
-                  position: 'relative'
+                <div style={{
+                  position: 'absolute',
+                  top: '8px',
+                  left: '8px',
+                  background: 'linear-gradient(45deg, #fbbf24, #f59e0b)',
+                  color: 'white',
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                  zIndex: 2,
                 }}>
-                  <Cropper
-                    ref={cropperRef}
-                    src={cropperImage}
-                    className="cropper"
-                    stencilProps={{
-                      movable: true,
-                      resizable: true
-                    }}
-                    stencilComponent={RectangleStencil}
-                    defaultSize={{ width: '95%', height: '95%' }}
-                    style={{ height: '100%', width: '100%' }}
-                  />
-                </Box>
-              </Box>
+                  <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                  </svg>
+                  THUMBNAIL
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add New Images Section */}
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <h2 className={styles.sectionTitle}>Add New Images</h2>
+          </div>
+
+          <div className={styles.infoAlert}>
+            Upload additional images for your slab. New images will be added to existing ones.
+          </div>
+
+          <div className={styles.imageSection}>
+            <ImageUpload
+              bucketName="slabimages"
+              pathPrefix="slabs"
+              onUploadComplete={handleImageUploadComplete}
+              resetKey={resetImageUploadKey}
+            />
+          </div>
+          
+          {newImages.length > 0 && (
+            <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--success-bg)', border: '1px solid var(--success-color)', borderRadius: '6px', color: 'var(--success-color)' }}>
+              {newImages.length} new image(s) ready to upload.
+              {newThumbnailFile 
+                ? ' New thumbnail will replace current one.' 
+                : ''}
+            </div>
+          )}
+        </div>
+
+        {/* Submit Button */}
+        <div className={styles.buttonGroup}>
+          <button
+            type="button"
+            className={`${styles.button} ${styles.buttonSecondary}`}
+            onClick={() => window.history.back()}
+            disabled={loading}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className={`${styles.button} ${styles.buttonPrimary}`}
+            disabled={loading}
+          >
+            {loading ? (
+              <div className={styles.loading}>
+                <div className={styles.spinner}></div>
+                Updating Slab...
+              </div>
+            ) : (
+              <>
+                <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+                Update Slab
+              </>
             )}
-            {formSubmitLoading && (
-              <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 10 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2, bgcolor: 'background.paper', borderRadius: 1, boxShadow: 2 }}>
-                  <CircularProgress />
-                  <Typography sx={{ ml: 1 }}>Processing...</Typography>
-                </Box>
-              </Box>
-            )}
-          </Box>
-        </Box>
-      </Modal>
-    </Box>
+          </button>
+        </div>
+      </form>
+    </div>
   );
 } 

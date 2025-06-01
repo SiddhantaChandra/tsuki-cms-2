@@ -1,238 +1,204 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/utils/supabase/client';
+import ImageUpload from '@/components/ImageUpload/ImageUpload';
+import { useToast } from '@/components/UI/Toast';
 import { v4 as uuidv4 } from 'uuid';
 import slugify from 'slugify';
 import {
-  TextField,
-  Button,
-  Grid,
-  Typography,
-  CircularProgress,
-  Alert,
-  Select,
-  MenuItem,
-  InputLabel,
-  FormControl,
-  FormHelperText,
-  Box,
-  Chip,
-  IconButton,
-  Paper,
-  Tooltip,
-  Stack,
-  Divider,
-  InputAdornment,
-  Fade,
-  useTheme
-} from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
-import StarIcon from '@mui/icons-material/Star';
-import StarBorderIcon from '@mui/icons-material/StarBorder';
-import CropIcon from '@mui/icons-material/Crop';
-import InfoIcon from '@mui/icons-material/Info';
-import PriceCheckIcon from '@mui/icons-material/PriceCheck';
-import ImageIcon from '@mui/icons-material/Image';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import SaveIcon from '@mui/icons-material/Save';
-import LabelIcon from '@mui/icons-material/Label';
-import LinkIcon from '@mui/icons-material/Link';
-import DescriptionIcon from '@mui/icons-material/Description';
-import CurrencyRupeeIcon from '@mui/icons-material/CurrencyRupee';
-import InventoryIcon from '@mui/icons-material/Inventory';
-import ImageUpload from '@/components/ImageUpload/ImageUpload';
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  horizontalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import SortableItem from '@/components/UI/SortableItem';
 import Link from 'next/link';
-import { useToast } from '@/components/UI/Toast';
+import styles from '../Forms/Forms.module.css';
 
 export default function EditAccessoryForm({ accessory, categories, onSuccess }) {
   const supabase = createClient();
-  const theme = useTheme();
   const { showToast } = useToast();
 
+  // Early return if accessory is not loaded yet
+  if (!accessory) {
+    return (
+      <div className={styles.formContainer} style={{ textAlign: 'center' }}>
+        <div className={styles.loading}>
+          <div className={styles.spinner}></div>
+          <span>Loading accessory data...</span>
+        </div>
+      </div>
+    );
+  }
+
   const [name, setName] = useState(accessory.name || '');
-  const [slug, setSlug] = useState(accessory.slug || '');
   const [description, setDescription] = useState(accessory.description || '');
   const [categoryId, setCategoryId] = useState(accessory.category_id || '');
-  const [price, setPrice] = useState(accessory.price?.toString() || '');
-  const [stock, setStock] = useState(accessory.stock_quantity?.toString() || '');
+  const [price, setPrice] = useState(accessory.price ? accessory.price.toString() : '');
+  const [stock, setStock] = useState(accessory.stock_quantity ? accessory.stock_quantity.toString() : '');
   const [accessoryType, setAccessoryType] = useState(accessory.accessory_type || '');
-  
-  // Images management
-  const [existingImages, setExistingImages] = useState(accessory.image_urls || []);
-  const [thumbnailUrl, setThumbnailUrl] = useState(accessory.thumbnail_url || '');
+
+  // Image state
+  const [existingImageUrls, setExistingImageUrls] = useState(accessory.image_urls || []);
+  const [existingThumbnailUrl, setExistingThumbnailUrl] = useState(accessory.thumbnail_url || '');
   const [newImages, setNewImages] = useState([]);
   const [newThumbnailFile, setNewThumbnailFile] = useState(null);
   const [imagesToDelete, setImagesToDelete] = useState([]);
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [formErrors, setFormErrors] = useState({});
-
   const [resetImageUploadKey, setResetImageUploadKey] = useState(0);
+
+  // UI state
+  const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   // Predefined accessory types
   const accessoryTypes = ['Binder', 'Sleeve', 'Toploader', 'Grading Service', 'Storage Box', 'Display Case', 'Other'];
 
-  const validateForm = () => {
-    const errors = {};
-    if (!name.trim()) errors.name = 'Name is required.';
-    if (!slug.trim()) errors.slug = 'Slug is required.';
-    if (!categoryId) errors.categoryId = 'Category is required.';
-    if (!accessoryType) errors.accessoryType = 'Accessory type is required.';
-    if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
-      errors.price = 'Valid price is required.';
-    }
-    if (!stock || isNaN(parseInt(stock)) || parseInt(stock) < 0) {
-      errors.stock = 'Valid stock quantity is required.';
-    }
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
-    // Check if we have either existing images or new images
-    if (existingImages.length === 0 && newImages.length === 0) {
-      errors.images = 'At least one image is required.';
-    }
-
-    // Check if we have either an existing thumbnail or a new one
-    if (!thumbnailUrl && !newThumbnailFile) {
-      errors.thumbnail = 'Thumbnail image is required.';
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleImageUploadComplete = useCallback(({ mainImageFiles, thumbnailImageFile }) => {
-    console.log('[EditAccessoryForm] handleImageUploadComplete called', { mainFiles: mainImageFiles?.length, thumbFile: thumbnailImageFile?.name });
-    
-    if (mainImageFiles && mainImageFiles.length > 0) {
-      setNewImages(mainImageFiles);
-    }
-    
-    if (thumbnailImageFile) {
-      setNewThumbnailFile(thumbnailImageFile);
-    }
-
-    // Clear any image-related errors
-    setFormErrors(prev => ({
-      ...prev,
-      images: null,
-      thumbnail: null
-    }));
-  }, []);
-
-  const handleRemoveExistingImage = (imageToRemove) => {
-    setExistingImages(existingImages.filter(img => img !== imageToRemove));
-    setImagesToDelete(prev => [...prev, imageToRemove]);
-    
-    // If removing the current thumbnail, set first available image as thumbnail
-    if (imageToRemove === thumbnailUrl) {
-      const remainingImages = existingImages.filter(img => img !== imageToRemove);
-      if (remainingImages.length > 0) {
-        setThumbnailUrl(remainingImages[0]);
-      } else {
-        setThumbnailUrl('');
-      }
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (active.id !== over.id) {
+      setExistingImageUrls((items) => {
+        const oldIndex = items.indexOf(active.id);
+        const newIndex = items.indexOf(over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
     }
   };
 
-  const handleSetAsThumbnail = (image) => {
-    setThumbnailUrl(image);
+  const handleImageUploadComplete = (data) => {
+    const { mainImageFiles, thumbnailImageFile } = data;
+    setNewImages(mainImageFiles || []);
+    setNewThumbnailFile(thumbnailImageFile || null);
+  };
+
+  const handleDeleteExistingImage = (imageUrl) => {
+    setExistingImageUrls(prev => prev.filter(url => url !== imageUrl));
+    setImagesToDelete(prev => [...prev, imageUrl]);
+    
+    // If deleted image was thumbnail, clear it
+    if (imageUrl === existingThumbnailUrl) {
+      setExistingThumbnailUrl('');
+    }
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    
-    if (!validateForm()) {
-      setSubmitError("Please correct the errors in the form.");
-      showToast("Please correct the errors in the form.", { severity: 'error' });
+    setLoading(true);
+
+    // Validation
+    if (!name.trim()) {
+      showToast('Accessory Name is required.', { severity: 'error' });
+      setLoading(false);
+      return;
+    }
+    if (!categoryId) {
+      showToast('Category is required.', { severity: 'error' });
+      setLoading(false);
+      return;
+    }
+    if (!accessoryType) {
+      showToast('Accessory type is required.', { severity: 'error' });
+      setLoading(false);
+      return;
+    }
+    if (existingImageUrls.length === 0 && newImages.length === 0) {
+      showToast('At least one image is required.', { severity: 'error' });
+      setLoading(false);
+      return;
+    }
+    if (!existingThumbnailUrl && !newThumbnailFile) {
+      showToast('Thumbnail is required.', { severity: 'error' });
+      setLoading(false);
+      return;
+    }
+    const priceValue = parseFloat(price);
+    if (isNaN(priceValue) || priceValue <= 0) {
+      showToast('Price must be a positive number.', { severity: 'error' });
+      setLoading(false);
+      return;
+    }
+    const stockValue = parseInt(stock);
+    if (isNaN(stockValue) || stockValue < 0) {
+      showToast('Stock quantity must be zero or positive.', { severity: 'error' });
+      setLoading(false);
       return;
     }
 
-    setIsSubmitting(true);
-    setSubmitError(null);
-    setSuccessMessage('');
-
     try {
-      // 1. Handle new thumbnail if provided
-      let finalThumbnailUrl = thumbnailUrl;
-      
+      const accessoryName = name.trim();
+      const baseSlug = slugify(accessoryName, { lower: true, strict: true, remove: /[*+~.()'"!:@]/g });
+      const uniqueId = uuidv4().substring(0, 8);
+      const finalSlug = `${baseSlug}-${uniqueId}`;
+
+      let uploadedNewImageUrls = [];
+      let finalThumbnailUrl = existingThumbnailUrl;
+
+      // Upload new main images
+      for (const file of newImages) {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const day = now.getDate().toString().padStart(2, '0');
+        const filePath = `accessories/${year}/${month}/${day}/${uuidv4()}.webp`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('cardimages')
+          .upload(filePath, file, { contentType: file.type, upsert: false });
+        if (uploadError) throw new Error(`Failed to upload image: ${uploadError.message}`);
+        
+        const { data: { publicUrl } } = supabase.storage.from('cardimages').getPublicUrl(filePath);
+        uploadedNewImageUrls.push(publicUrl);
+      }
+
+      // Upload new thumbnail if provided
       if (newThumbnailFile) {
-        const thumbDatePath = new Date().toISOString().split('T')[0].replace(/-/g, '/');
-        const thumbFileName = `thumb_${uuidv4()}_${slugify(newThumbnailFile.name, { lower: true, strict: true })}`;
-        const thumbPath = `accessories/${thumbDatePath}/${thumbFileName}`;
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const day = now.getDate().toString().padStart(2, '0');
+        const thumbFilePath = `accessories/${year}/${month}/${day}/${uuidv4()}_thumb.webp`;
 
         const { error: thumbUploadError } = await supabase.storage
           .from('cardimages')
-          .upload(thumbPath, newThumbnailFile);
-
-        if (thumbUploadError) throw new Error(`Thumbnail upload failed: ${thumbUploadError.message}`);
-        
-        const { data: publicThumbUrlData } = supabase.storage.from('cardimages').getPublicUrl(thumbPath);
-        finalThumbnailUrl = publicThumbUrlData.publicUrl;
+          .upload(thumbFilePath, newThumbnailFile, { contentType: newThumbnailFile.type, upsert: false });
+        if (thumbUploadError) throw new Error(`Failed to upload thumbnail: ${thumbUploadError.message}`);
+        const { data: { publicUrl: thumbPublicUrl } } = supabase.storage.from('cardimages').getPublicUrl(thumbFilePath);
+        finalThumbnailUrl = thumbPublicUrl;
       }
 
-      // 2. Upload any new images
-      const newImageUrls = [];
-      if (newImages.length > 0) {
-        for (const imageFile of newImages) {
-          const datePath = new Date().toISOString().split('T')[0].replace(/-/g, '/');
-          const fileName = `${uuidv4()}_${slugify(imageFile.name, { lower: true, strict: true })}`;
-          const filePath = `accessories/${datePath}/${fileName}`;
+      // Combine existing and new image URLs
+      const allImageUrls = [...existingImageUrls, ...uploadedNewImageUrls];
 
-          const { error: imageUploadError } = await supabase.storage
-            .from('cardimages')
-            .upload(filePath, imageFile);
+      const accessoryData = {
+        name: accessoryName,
+        slug: finalSlug,
+        description: description.trim() || null,
+        category_id: categoryId,
+        accessory_type: accessoryType,
+        price: parseFloat(price) || null,
+        stock_quantity: parseInt(stock) || 0,
+        image_urls: allImageUrls,
+        thumbnail_url: finalThumbnailUrl,
+      };
 
-          if (imageUploadError) throw new Error(`Image upload failed for ${imageFile.name}: ${imageUploadError.message}`);
-          
-          const { data: publicUrlData } = supabase.storage.from('cardimages').getPublicUrl(filePath);
-          newImageUrls.push(publicUrlData.publicUrl);
-        }
-      }
-
-      // 3. Delete any images marked for deletion
-      if (imagesToDelete.length > 0) {
-        // Extract file paths from URLs
-        for (const imageUrl of imagesToDelete) {
-          const path = imageUrl.split('/').slice(-2).join('/');
-          
-          try {
-            await supabase.storage
-              .from('cardimages')
-              .remove([`accessories/${path}`]);
-          } catch (error) {
-            console.error(`Failed to delete image: ${error.message}`);
-            // Continue with other operations even if some deletions fail
-          }
-        }
-      }
-
-      // 4. Combine existing and new images for the final list
-      const finalImageUrls = [...existingImages, ...newImageUrls];
-
-      // 5. Ensure thumbnail is in the image list if not already
-      if (finalThumbnailUrl && !finalImageUrls.includes(finalThumbnailUrl)) {
-        finalImageUrls.push(finalThumbnailUrl);
-      }
-
-      // 6. Update accessory data
       const { error: updateError } = await supabase
         .from('accessories')
-        .update({
-          name,
-          slug,
-          description,
-          category_id: categoryId,
-          accessory_type: accessoryType,
-          price: parseFloat(price),
-          stock_quantity: parseInt(stock),
-          image_urls: finalImageUrls,
-          thumbnail_url: finalThumbnailUrl,
-          updated_at: new Date().toISOString()
-        })
+        .update(accessoryData)
         .eq('id', accessory.id);
 
       if (updateError) throw new Error(`Failed to update accessory: ${updateError.message}`);
@@ -242,6 +208,19 @@ export default function EditAccessoryForm({ accessory, categories, onSuccess }) 
         severity: 'success',
         title: 'Success'
       });
+
+      // Delete old images that were removed
+      if (imagesToDelete.length > 0) {
+        for (const imageUrl of imagesToDelete) {
+          try {
+            const urlPath = new URL(imageUrl).pathname;
+            const filePath = urlPath.split('/').slice(-4).join('/');
+            await supabase.storage.from('cardimages').remove([filePath]);
+          } catch (deleteError) {
+            console.warn('Failed to delete old image:', deleteError);
+          }
+        }
+      }
 
       // Success handling
       setSuccessMessage('Accessory updated successfully!');
@@ -260,384 +239,317 @@ export default function EditAccessoryForm({ accessory, categories, onSuccess }) 
 
     } catch (error) {
       console.error('Error updating accessory:', error);
-      const errorMessage = error.message || 'An unexpected error occurred.';
-      setSubmitError(errorMessage);
+      const errorMessage = error.message || 'An unexpected error occurred while updating the accessory.';
       showToast(errorMessage, { 
         severity: 'error',
         title: 'Error' 
       });
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <Box sx={{ maxWidth: 900, mx: 'auto', p: 3 }}>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
-          Edit Accessory
-        </Typography>
-        <Button 
-          component={Link} 
-          href="/dashboard/accessories" 
-          variant="outlined"
-          startIcon={<ArrowBackIcon />}
-          sx={{ borderRadius: 2 }}
-        >
-          Back to Accessories
-        </Button>
-      </Box>
+    <div className={styles.formContainer}>
+      {/* Form */}
+      <form onSubmit={handleSubmit} className={styles.form}>
+        {/* Basic Information Section */}
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h2 className={styles.sectionTitle}>Basic Information</h2>
+          </div>
+          
+          <div className={styles.fieldGroup}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="accessoryName">
+                Accessory Name <span className={styles.required}>*</span>
+              </label>
+              <input
+                id="accessoryName"
+                type="text"
+                className={styles.input}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                placeholder="Enter accessory name"
+              />
+            </div>
 
-      <Paper elevation={0} sx={{ borderRadius: 2, overflow: 'hidden' }}>
-        <Box component="form" onSubmit={handleSubmit} sx={{ p: 3 }}>
-          {/* Basic Information Section */}
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <InfoIcon color="primary" />
-              Basic Information
-            </Typography>
-            
-            <Stack spacing={3}>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={8}>
-                  <TextField
-                    required
-                    fullWidth
-                    id="name"
-                    label="Accessory Name"
-                    name="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    error={!!formErrors.name}
-                    helperText={formErrors.name}
-                    disabled={isSubmitting}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <LabelIcon color="action" />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                  <TextField
-                    required
-                    fullWidth
-                    id="slug"
-                    label="Slug"
-                    name="slug"
-                    value={slug}
-                    onChange={(e) => setSlug(e.target.value)}
-                    error={!!formErrors.slug}
-                    helperText={formErrors.slug}
-                    disabled={isSubmitting}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <LinkIcon color="action" />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Grid>
-              </Grid>
-              
-              <TextField
-                fullWidth
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="description">
+                Description
+              </label>
+              <textarea
                 id="description"
-                label="Description"
-                name="description"
-                multiline
-                rows={4}
+                className={styles.textarea}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                disabled={isSubmitting}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1.5 }}>
-                      <DescriptionIcon color="action" />
-                    </InputAdornment>
-                  ),
-                }}
+                placeholder="Enter accessory description"
+                rows={4}
               />
-            </Stack>
-          </Box>
+            </div>
 
-          <Divider sx={{ my: 4 }} />
+            <div className={styles.row}>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="price">
+                  Price <span className={styles.required}>*</span>
+                </label>
+                <input
+                  id="price"
+                  type="number"
+                  className={styles.input}
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  min="0"
+                  step="0.01"
+                  required
+                  placeholder="0.00"
+                />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="stock">
+                  Stock Quantity <span className={styles.required}>*</span>
+                </label>
+                <input
+                  id="stock"
+                  type="number"
+                  className={styles.input}
+                  value={stock}
+                  onChange={(e) => setStock(e.target.value)}
+                  min="0"
+                  required
+                  placeholder="0"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
 
-          {/* Classification & Pricing Section */}
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <PriceCheckIcon color="primary" />
-              Classification & Pricing
-            </Typography>
-            
-            <Stack spacing={3}>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth required error={!!formErrors.categoryId}>
-                    <InputLabel id="category-label">Category</InputLabel>
-                    <Select
-                      labelId="category-label"
-                      id="category"
-                      value={categoryId}
-                      label="Category"
-                      onChange={(e) => setCategoryId(e.target.value)}
-                      disabled={isSubmitting}
-                    >
-                      {categories.map((category) => (
-                        <MenuItem key={category.id} value={category.id}>
-                          {category.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                    {formErrors.categoryId && (
-                      <FormHelperText>{formErrors.categoryId}</FormHelperText>
-                    )}
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth required error={!!formErrors.accessoryType}>
-                    <InputLabel id="accessory-type-label">Accessory Type</InputLabel>
-                    <Select
-                      labelId="accessory-type-label"
-                      id="accessoryType"
-                      value={accessoryType}
-                      label="Accessory Type"
-                      onChange={(e) => setAccessoryType(e.target.value)}
-                      disabled={isSubmitting}
-                    >
-                      {accessoryTypes.map((type) => (
-                        <MenuItem key={type} value={type}>
-                          {type}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                    {formErrors.accessoryType && (
-                      <FormHelperText>{formErrors.accessoryType}</FormHelperText>
-                    )}
-                  </FormControl>
-                </Grid>
-              </Grid>
+        {/* Classification Section */}
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            <h2 className={styles.sectionTitle}>Classification</h2>
+          </div>
+          
+          <div className={styles.fieldGroup}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="category">
+                Category <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="category"
+                className={styles.select}
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                required
+              >
+                <option value="">Select Category</option>
+                {(categories || []).map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
 
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    required
-                    fullWidth
-                    id="price"
-                    label="Price"
-                    name="price"
-                    type="number"
-                    inputProps={{ min: 0, step: 0.01 }}
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    error={!!formErrors.price}
-                    helperText={formErrors.price}
-                    disabled={isSubmitting}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <CurrencyRupeeIcon color="action" />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    required
-                    fullWidth
-                    id="stock"
-                    label="Stock Quantity"
-                    name="stock"
-                    type="number"
-                    inputProps={{ min: 0, step: 1 }}
-                    value={stock}
-                    onChange={(e) => setStock(e.target.value)}
-                    error={!!formErrors.stock}
-                    helperText={formErrors.stock}
-                    disabled={isSubmitting}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <InventoryIcon color="action" />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Grid>
-              </Grid>
-            </Stack>
-          </Box>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="accessoryType">
+                Accessory Type <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="accessoryType"
+                className={styles.select}
+                value={accessoryType}
+                onChange={(e) => setAccessoryType(e.target.value)}
+                required
+              >
+                <option value="">Select Accessory Type</option>
+                {accessoryTypes.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
 
-          <Divider sx={{ my: 4 }} />
+        {/* Existing Images Section */}
+        {existingImageUrls.length > 0 && (
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <h2 className={styles.sectionTitle}>Current Images</h2>
+            </div>
 
-          {/* Images Section */}
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <ImageIcon color="primary" />
-              Images & Thumbnail
-            </Typography>
+            <div className={styles.infoAlert}>
+              Drag and drop images to reorder them. Click actions to delete images.
+            </div>
 
-            {/* Current images display */}
-            {existingImages.length > 0 && (
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 500 }}>
-                  Current Images:
-                </Typography>
-                <Box sx={{ 
-                  display: 'flex', 
-                  flexWrap: 'wrap', 
-                  gap: 2
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={existingImageUrls} strategy={horizontalListSortingStrategy}>
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(11.25rem, 1fr))', 
+                  gap: '1rem', 
+                  marginTop: '1rem' 
                 }}>
-                  {existingImages.map((imageUrl, index) => (
-                    <Box
-                      key={index}
-                      sx={{
-                        position: 'relative',
-                        width: 120,
-                        height: 168,
-                        borderRadius: 2,
-                        overflow: 'hidden',
-                        boxShadow: 3
+                  {existingImageUrls.map((imageUrl) => (
+                    <SortableItem
+                      key={imageUrl}
+                      id={imageUrl}
+                      imageUrl={imageUrl}
+                      isThumbnail={false}
+                      onDelete={handleDeleteExistingImage}
+                      onSetThumbnail={() => {}} // Empty function since we're not using this
+                      style={{
+                        width: '11.25rem',
+                        height: 'auto',
                       }}
-                    >
-                      <img
-                        src={imageUrl}
-                        alt={`Accessory image ${index + 1}`}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'contain',
-                          border: imageUrl === thumbnailUrl ? '2px solid #f9a825' : 'none',
-                          backgroundColor: 'rgba(0,0,0,0.04)'
-                        }}
-                      />
-                      <Box sx={{
-                        position: 'absolute',
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        p: 0.75,
-                        background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 70%, rgba(0,0,0,0) 100%)'
-                      }}>
-                        <Tooltip title={imageUrl === thumbnailUrl ? "Current thumbnail" : "Set as thumbnail"}>
-                          <IconButton 
-                            size="small"
-                            onClick={() => handleSetAsThumbnail(imageUrl)}
-                            sx={{
-                              backgroundColor: imageUrl === thumbnailUrl ? 'rgba(249, 168, 37, 0.7)' : 'rgba(0,0,0,0.5)',
-                              color: '#fff',
-                              '&:hover': {
-                                backgroundColor: imageUrl === thumbnailUrl ? 'rgba(249, 168, 37, 0.9)' : 'rgba(0,0,0,0.7)',
-                              }
-                            }}
-                          >
-                            {imageUrl === thumbnailUrl ? <StarIcon /> : <StarBorderIcon />}
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Remove image">
-                          <IconButton 
-                            size="small"
-                            onClick={() => handleRemoveExistingImage(imageUrl)}
-                            sx={{
-                              backgroundColor: 'rgba(220,0,0,0.5)',
-                              color: '#fff',
-                              '&:hover': { backgroundColor: 'rgba(220,0,0,0.7)' }
-                            }}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </Box>
+                    />
                   ))}
-                </Box>
-              </Box>
-            )}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </div>
+        )}
 
-            {/* Upload new images */}
-            <Alert severity="info" sx={{ mb: 2 }}>
-              Upload new images to replace or add to the current ones (optional)
-            </Alert>
+        {/* Current Thumbnail Section */}
+        {existingThumbnailUrl && (
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3l14 0 0 14-14 0zm7 3l-2 0 0 2 2 0zm0 4l-2 0 0 2 2 0z" />
+              </svg>
+              <h2 className={styles.sectionTitle}>Current Thumbnail</h2>
+            </div>
 
-            <Box 
-              sx={{ 
-                p: 3, 
-                border: '1px dashed',
-                borderColor: formErrors.images ? theme.palette.error.main : theme.palette.divider,
-                borderRadius: 2,
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
-                transition: 'all 0.2s'
-              }}
-            >
-              <ImageUpload
-                bucketName="cardimages"
-                pathPrefix="accessories"
-                onUploadComplete={handleImageUploadComplete}
-              />
-            </Box>
+            <div className={styles.infoAlert}>
+              This is the current thumbnail image that represents this accessory.
+            </div>
 
-            {newImages.length > 0 && (
-              <Fade in={true}>
-                <Alert 
-                  severity="success" 
-                  sx={{ mt: 2 }}
-                  icon={<CheckCircleOutlineIcon />}
-                >
-                  {newImages.length} new image(s) ready to upload.
-                  {newThumbnailFile 
-                    ? ' New thumbnail is set.' 
-                    : ' You can set a new thumbnail using the "Make Thumb" button.'}
-                </Alert>
-              </Fade>
-            )}
-            
-            {formErrors.images && (
-              <FormHelperText error sx={{ ml: 2, mt: 0.5 }}>
-                {formErrors.images}
-              </FormHelperText>
-            )}
-            
-            {formErrors.thumbnail && (
-              <FormHelperText error sx={{ ml: 2, mt: 0.5 }}>
-                {formErrors.thumbnail}
-              </FormHelperText>
-            )}
-          </Box>
+            <div style={{ 
+              display: 'flex',
+              justifyContent: 'center',
+              marginTop: '1rem'
+            }}>
+              <div style={{
+                width: '11.25rem',
+                position: 'relative',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                border: '3px solid var(--primary-color)',
+                backgroundColor: 'var(--section-bg)',
+              }}>
+                <img
+                  src={existingThumbnailUrl}
+                  alt="Current Thumbnail"
+                  style={{
+                    width: '100%',
+                    height: 'auto',
+                    display: 'block',
+                    minHeight: '200px',
+                    objectFit: 'contain',
+                    backgroundColor: 'var(--hover-bg)',
+                  }}
+                />
+                <div style={{
+                  position: 'absolute',
+                  top: '8px',
+                  left: '8px',
+                  background: 'linear-gradient(45deg, #fbbf24, #f59e0b)',
+                  color: 'white',
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                  zIndex: 2,
+                }}>
+                  <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                  </svg>
+                  THUMBNAIL
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
-          {/* Submit Button */}
-          <Divider sx={{ my: 3 }} />
-          <Stack direction="row" spacing={2} justifyContent="flex-end">
-            <Button
-              variant="outlined"
-              onClick={() => window.history.back()}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={isSubmitting}
-              startIcon={isSubmitting ? <CircularProgress size={20} /> : <SaveIcon />}
-              sx={{
-                minWidth: 200,
-                background: !isSubmitting
-                  ? `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 90%)`
-                  : undefined,
-              }}
-            >
-              {isSubmitting ? 'Saving Changes...' : 'Save Changes'}
-            </Button>
-          </Stack>
-        </Box>
-      </Paper>
-    </Box>
+        {/* Add New Images Section */}
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <h2 className={styles.sectionTitle}>Add New Images</h2>
+          </div>
+
+          <div className={styles.infoAlert}>
+            Upload additional images for your accessory. New images will be added to existing ones.
+          </div>
+
+          <div className={styles.imageSection}>
+            <ImageUpload
+              bucketName="cardimages"
+              pathPrefix="accessories"
+              onUploadComplete={handleImageUploadComplete}
+              resetKey={resetImageUploadKey}
+            />
+          </div>
+          
+          {newImages.length > 0 && (
+            <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--success-bg)', border: '1px solid var(--success-color)', borderRadius: '6px', color: 'var(--success-color)' }}>
+              {newImages.length} new image(s) ready to upload.
+              {newThumbnailFile 
+                ? ' New thumbnail will replace current one.' 
+                : ''}
+            </div>
+          )}
+        </div>
+
+        {/* Submit Button */}
+        <div className={styles.buttonGroup}>
+          <button
+            type="button"
+            className={`${styles.button} ${styles.buttonSecondary}`}
+            onClick={() => window.history.back()}
+            disabled={loading}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className={`${styles.button} ${styles.buttonPrimary}`}
+            disabled={loading}
+          >
+            {loading ? (
+              <div className={styles.loading}>
+                <div className={styles.spinner}></div>
+                Updating Accessory...
+              </div>
+            ) : (
+              <>
+                <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+                Update Accessory
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 } 

@@ -1,0 +1,71 @@
+/* Global CSS variables for form styling with dark mode support */
+
+:root {
+  --primary-color: #111827;
+  --secondary-color: #6b7280;
+  --primary-color-alpha: rgba(17, 24, 39, 0.1);
+  --focus-shadow: rgba(0, 0, 0, 0.1);
+  --error-color: #dc2626;
+  --error-color-alpha: rgba(220, 38, 38, 0.2);
+  --success-color: #059669;
+  --success-bg: #f9fafb;
+  --error-bg: #fef2f2;
+  --info-color: #374151;
+  
+  /* Light mode colors */
+  --form-bg: #ffffff;
+  --section-bg: #ffffff;
+  --input-bg: #ffffff;
+  --text-primary: #000000;
+  --text-secondary: #6b7280;
+  --button-primary-text: #ffffff;
+  --border-color: #d1d5db;
+  --hover-bg: #f9fafb;
+  --disabled-bg: #f3f4f6;
+  --form-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  --info-bg: #f9fafb;
+  --info-border: #d1d5db;
+  --info-text: #374151;
+}
+
+/* Dark mode styles */
+[data-theme="dark"] {
+  --form-bg: #000000;
+  --section-bg: #000000;
+  --input-bg: #1a1a1a;
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --button-primary-text: #000000;
+  --border-color: #404040;
+  --hover-bg: #2a2a2a;
+  --disabled-bg: #2a2a2a;
+  --form-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  --focus-shadow: rgba(255, 255, 255, 0.1);
+  --success-bg: #064e3b;
+  --error-bg: #7f1d1d;
+  --info-bg: #2a2a2a;
+  --info-border: #404040;
+  --info-text: #d1d5db;
+}
+
+/* Auto dark mode based on system preference */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --form-bg: #000000;
+    --section-bg: #000000;
+    --input-bg: #1a1a1a;
+    --text-primary: #ffffff;
+    --text-secondary: #9ca3af;
+    --button-primary-text: #000000;
+    --border-color: #404040;
+    --hover-bg: #2a2a2a;
+    --disabled-bg: #2a2a2a;
+    --form-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    --focus-shadow: rgba(255, 255, 255, 0.1);
+    --success-bg: #064e3b;
+    --error-bg: #7f1d1d;
+    --info-bg: #2a2a2a;
+    --info-border: #404040;
+    --info-text: #d1d5db;
+  }
+} 

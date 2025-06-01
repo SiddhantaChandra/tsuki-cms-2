@@ -21,6 +21,8 @@ export default function EditCardPage() {
   
   const [card, setCard] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [sets, setSets] = useState([]);
+  const [subsets, setSubsets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -53,6 +55,22 @@ export default function EditCardPage() {
       
       if (categoriesError) throw new Error(`Failed to load categories: ${categoriesError.message}`);
       setCategories(categoriesData || []);
+
+      // Fetch sets for the form
+      const { data: setsData, error: setsError } = await supabase
+        .from('sets')
+        .select('id, name');
+      
+      if (setsError) throw new Error(`Failed to load sets: ${setsError.message}`);
+      setSets(setsData || []);
+
+      // Fetch subsets for the form
+      const { data: subsetsData, error: subsetsError } = await supabase
+        .from('subsets')
+        .select('id, name, slug');
+      
+      if (subsetsError) throw new Error(`Failed to load subsets: ${subsetsError.message}`);
+      setSubsets(subsetsData || []);
     } catch (err) {
       console.error('Error loading data:', err);
       setError(err.message);
@@ -233,9 +251,11 @@ export default function EditCardPage() {
         </Box>
       ) : (
         <EditCardForm
-          initialCardData={card}
-          initialCategories={categories}
-          onFormSubmitSuccess={handleEditSuccess}
+          card={card}
+          categories={categories}
+          sets={sets}
+          subsets={subsets}
+          onSuccess={handleEditSuccess}
         />
       )}
 

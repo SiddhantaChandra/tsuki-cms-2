@@ -1,151 +1,153 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  Box, Button, FormControl, Grid, InputLabel, MenuItem, Select, TextField, Typography,
-  CircularProgress, Alert, Divider, useTheme, alpha, Paper, Stack, InputAdornment, Fade
-} from '@mui/material';
+import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import ImageUpload from '@/components/ImageUpload/ImageUpload';
 import { useToast } from '@/components/UI/Toast';
 import { v4 as uuidv4 } from 'uuid';
 import slugify from 'slugify';
 import Link from 'next/link';
-
-// Icons
-import InfoIcon from '@mui/icons-material/Info';
-import CategoryIcon from '@mui/icons-material/Category';
-import CollectionsIcon from '@mui/icons-material/Collections';
-import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import CurrencyRupeeIcon from '@mui/icons-material/CurrencyRupee';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import SaveIcon from '@mui/icons-material/Save';
-import LocalOfferIcon from '@mui/icons-material/LocalOffer';
-import LanguageIcon from '@mui/icons-material/Language';
-import ImageIcon from '@mui/icons-material/Image';
-import GradeIcon from '@mui/icons-material/Grade';
+import styles from '../Forms/Forms.module.css';
 
 export default function NewSlabForm({ 
-    initialCategories, 
-    loadingCategoriesExternal,
-    categoryErrorExternal,
-    onFormSubmitSuccess 
+  categoriesExternal, 
+  initialCategories,
+  setsExternal, 
+  subsetsExternal, 
+  gradeCompaniesExternal, 
+  loadingCategoriesExternal, 
+  categoryErrorExternal,
+  onFormSubmitSuccess 
 }) {
   const supabase = createClient();
-  const theme = useTheme();
   const { showToast } = useToast();
 
-  // Form fields
   const [name, setName] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSet, setSelectedSet] = useState('');
   const [selectedSubset, setSelectedSubset] = useState('');
   const [selectedGradeCompany, setSelectedGradeCompany] = useState('');
   const [gradeScore, setGradeScore] = useState('');
-  const [condition, setCondition] = useState('perfect'); // Default to Perfect
+  const [condition, setCondition] = useState('perfect');
   const [language, setLanguage] = useState('Japanese');
   const [price, setPrice] = useState('');
 
-  // Data for dropdowns
-  const [categories, setCategories] = useState(initialCategories || []);
+  // Data state
+  const [categories, setCategories] = useState([]);
   const [sets, setSets] = useState([]);
   const [subsets, setSubsets] = useState([]);
   const [gradeCompanies, setGradeCompanies] = useState([]);
-  const [availableGrades, setAvailableGrades] = useState([]); // Grades for the selected company
+  const [availableGrades, setAvailableGrades] = useState([]);
 
   // Loading states
   const [loadingSets, setLoadingSets] = useState(false);
   const [loadingSubsets, setLoadingSubsets] = useState(false);
   const [loadingGradeCompanies, setLoadingGradeCompanies] = useState(true);
+
+  // UI state
   const [formSubmitLoading, setFormSubmitLoading] = useState(false);
-  
-  // Error/Success states
   const [submitError, setSubmitError] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(null);
+  const [resetImageUploadKey, setResetImageUploadKey] = useState(0);
 
-  // Image files from ImageUpload component
+  // Image state
   const [uploadedMainImageFiles, setUploadedMainImageFiles] = useState([]);
   const [uploadedThumbnailFile, setUploadedThumbnailFile] = useState(null);
+
   const imageUploadRef = useRef(null);
 
+  // Initialize categories from props
   useEffect(() => {
-    setCategories(initialCategories || []);
-  }, [initialCategories]);
+    const cats = categoriesExternal || initialCategories || [];
+    setCategories(cats);
+  }, [categoriesExternal, initialCategories]);
 
-  // Fetch Grade Companies
+  // Fetch sets when category changes
+  useEffect(() => {
+    if (selectedCategory) {
+      const fetchSets = async () => {
+        setLoadingSets(true);
+        setSets([]);
+        setSelectedSet('');
+        setSubsets([]);
+        setSelectedSubset('');
+        
+        const { data, error } = await supabase
+          .from('sets')
+          .select('id, name')
+          .eq('category_id', selectedCategory);
+        
+        if (error) {
+          console.error('Failed to load sets:', error);
+          showToast('Failed to load sets', { severity: 'error' });
+        } else {
+          setSets(data || []);
+        }
+        setLoadingSets(false);
+      };
+      fetchSets();
+    } else {
+      setSets([]);
+      setSelectedSet('');
+      setSubsets([]);
+      setSelectedSubset('');
+    }
+  }, [selectedCategory, supabase, showToast]);
+
+  // Fetch subsets when set changes
+  useEffect(() => {
+    if (selectedSet) {
+      const fetchSubsets = async () => {
+        setLoadingSubsets(true);
+        setSubsets([]);
+        setSelectedSubset('');
+        
+        const { data, error } = await supabase
+          .from('subsets')
+          .select('id, name, slug, release_date')
+          .eq('set_id', selectedSet);
+        
+        if (error) {
+          console.error('Failed to load subsets:', error);
+          showToast('Failed to load subsets', { severity: 'error' });
+        } else {
+          // Sort subsets by release date (newest first)
+          const sortedSubsets = [...(data || [])].sort((a, b) => {
+            if (a.release_date && b.release_date) {
+              return new Date(b.release_date) - new Date(a.release_date);
+            } else if (a.release_date) return -1;
+            else if (b.release_date) return 1;
+            else return 0;
+          });
+          setSubsets(sortedSubsets);
+        }
+        setLoadingSubsets(false);
+      };
+      fetchSubsets();
+    } else {
+      setSubsets([]);
+      setSelectedSubset('');
+    }
+  }, [selectedSet, supabase, showToast]);
+
+  // Fetch grade companies
   useEffect(() => {
     const fetchGradeCompanies = async () => {
       setLoadingGradeCompanies(true);
-      const { data, error } = await supabase.from('grade_companies').select('id, name, grades');
+      const { data, error } = await supabase
+        .from('grade_companies')
+        .select('id, name, grades');
+      
       if (error) {
-        setSubmitError('Failed to load grading companies: ' + error.message);
-        setGradeCompanies([]);
+        console.error('Failed to load grade companies:', error);
+        showToast('Failed to load grade companies', { severity: 'error' });
       } else {
         setGradeCompanies(data || []);
       }
       setLoadingGradeCompanies(false);
     };
     fetchGradeCompanies();
-  }, [supabase]);
-
-  // Fetch Sets when Category changes
-  useEffect(() => {
-    if (selectedCategory) {
-      const fetchSets = async () => {
-        setLoadingSets(true);
-        setSets([]); setSelectedSet(''); setSubsets([]); setSelectedSubset('');
-        const { data, error } = await supabase.from('sets').select('id, name').eq('category_id', selectedCategory);
-        if (error) setSubmitError('Failed to load sets: ' + error.message); else setSets(data || []);
-        setLoadingSets(false);
-      };
-      fetchSets();
-    } else {
-      setSets([]); setSelectedSet(''); setSubsets([]); setSelectedSubset('');
-    }
-  }, [selectedCategory, supabase]);
-
-  // Fetch Subsets when Set changes
-  useEffect(() => {
-    if (selectedSet) {
-      const fetchSubsets = async () => {
-        if (!selectedSet) return;
-        try {
-          setLoadingSubsets(true);
-          setSubsets([]);
-          setSelectedSubset('');
-          const { data, error } = await supabase
-            .from('subsets')
-            .select('id, name, slug, release_date')
-            .eq('set_id', selectedSet);
-          if (error) throw error;
-          if (data) {
-            // Sort subsets by release date (newest first), fallback to created_at if no release date
-            const sortedSubsets = [...data].sort((a, b) => {
-              // If both have release dates, compare them
-              if (a.release_date && b.release_date) {
-                return new Date(b.release_date) - new Date(a.release_date); // newest first
-              }
-              // If only one has release date, prioritize the one with release date
-              else if (a.release_date) return -1;
-              else if (b.release_date) return 1;
-              // If neither has release date, keep original order
-              else return 0;
-            });
-            setSubsets(sortedSubsets);
-          }
-        } catch (error) {
-          console.error("Error fetching subsets:", error.message);
-        } finally {
-          setLoadingSubsets(false);
-        }
-      };
-      fetchSubsets();
-    } else {
-      setSubsets([]); setSelectedSubset('');
-    }
-  }, [selectedSet, supabase]);
+  }, [supabase, showToast]);
 
   // Update available grades when grade company changes
   useEffect(() => {
@@ -160,19 +162,17 @@ export default function NewSlabForm({
   }, [selectedGradeCompany, gradeCompanies]);
 
   const handleImageUploadComplete = (data) => {
+    console.log('[NewSlabForm] handleImageUploadComplete called:', data);
     const { mainImageFiles, thumbnailImageFile } = data;
     setUploadedMainImageFiles(mainImageFiles || []);
     setUploadedThumbnailFile(thumbnailImageFile || null);
-    
-    console.log("Image upload complete:", {
-      mainCount: mainImageFiles?.length || 0,
-      hasThumbnail: Boolean(thumbnailImageFile)
-    });
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setFormSubmitLoading(true); setSubmitError(null); setSubmitSuccess(null);
+    setFormSubmitLoading(true);
+    setSubmitError(null);
+    setSubmitSuccess(null);
 
     // Validation
     if (!name.trim()) { 
@@ -212,26 +212,8 @@ export default function NewSlabForm({
       return; 
     }
     if (!selectedGradeCompany) { 
-      setSubmitError('Grading Company is required.'); 
-      showToast('Grading Company is required.', { severity: 'error' });
-      setFormSubmitLoading(false); 
-      return; 
-    }
-    if (!gradeScore) { 
-      setSubmitError('Grade Score is required.'); 
-      showToast('Grade Score is required.', { severity: 'error' });
-      setFormSubmitLoading(false); 
-      return; 
-    }
-    if (!condition.trim()) { 
-      setSubmitError('Condition is required.'); 
-      showToast('Condition is required.', { severity: 'error' });
-      setFormSubmitLoading(false); 
-      return; 
-    }
-    if (!language.trim()) { 
-      setSubmitError('Language is required.'); 
-      showToast('Language is required.', { severity: 'error' });
+      setSubmitError('Grade Company is required.'); 
+      showToast('Grade Company is required.', { severity: 'error' });
       setFormSubmitLoading(false); 
       return; 
     }
@@ -242,24 +224,18 @@ export default function NewSlabForm({
       setFormSubmitLoading(false); 
       return; 
     }
-    if (categoryErrorExternal) { 
-      setSubmitError('Cannot submit, categories failed to load on parent page.'); 
-      showToast('Cannot submit, categories failed to load on parent page.', { severity: 'error' });
-      setFormSubmitLoading(false); 
-      return;
-    }
 
     try {
       const slabName = name.trim();
-      const baseSlug = slugify(slabName, { lower: true, strict: true, remove: /[*+~.()\'\"!:@]/g });
+      const baseSlug = slugify(slabName, { lower: true, strict: true, remove: /[*+~.()'"!:@]/g });
       const uniqueId = uuidv4().substring(0, 8);
       const finalSlug = `${baseSlug}-${uniqueId}`;
 
       const uploadedImageUrls = [];
       let finalThumbnailUrl = null;
 
-      for (const uploadedMainImageFile of uploadedMainImageFiles) {
-        const originalName = uploadedMainImageFile.name.substring(0, uploadedMainImageFile.name.lastIndexOf('.') || uploadedMainImageFile.name.length);
+      // Upload main images
+      for (const file of uploadedMainImageFiles) {
         const now = new Date();
         const year = now.getFullYear();
         const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -268,15 +244,15 @@ export default function NewSlabForm({
         
         const { error: uploadError } = await supabase.storage
           .from('slabimages')
-          .upload(filePath, uploadedMainImageFile, { contentType: uploadedMainImageFile.type, upsert: false });
-        if (uploadError) throw new Error('Failed to upload main image ' + uploadedMainImageFile.name + ': ' + uploadError.message);
+          .upload(filePath, file, { contentType: file.type, upsert: false });
+        if (uploadError) throw new Error(`Failed to upload main image ${file.name}: ${uploadError.message}`);
         
         const { data: { publicUrl } } = supabase.storage.from('slabimages').getPublicUrl(filePath);
         uploadedImageUrls.push(publicUrl);
       }
 
+      // Upload thumbnail
       if (uploadedThumbnailFile) {
-        const originalName = uploadedThumbnailFile.name.substring(0, uploadedThumbnailFile.name.lastIndexOf('.') || uploadedThumbnailFile.name.length);
         const now = new Date();
         const year = now.getFullYear();
         const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -286,26 +262,26 @@ export default function NewSlabForm({
         const { error: thumbUploadError } = await supabase.storage
           .from('slabimages')
           .upload(thumbFilePath, uploadedThumbnailFile, { contentType: uploadedThumbnailFile.type, upsert: false });
-        if (thumbUploadError) throw new Error('Failed to upload thumbnail ' + uploadedThumbnailFile.name + ': ' + thumbUploadError.message);
+        if (thumbUploadError) throw new Error(`Failed to upload thumbnail: ${thumbUploadError.message}`);
         const { data: { publicUrl: thumbPublicUrl } } = supabase.storage.from('slabimages').getPublicUrl(thumbFilePath);
         finalThumbnailUrl = thumbPublicUrl;
       }
-      
+
       const slabData = {
         name: slabName,
         slug: finalSlug,
         image_urls: uploadedImageUrls,
         thumbnail_url: finalThumbnailUrl,
         category_id: selectedCategory,
-        set_id: selectedSet,
-        subset_id: selectedSubset,
-        grade_company_id: selectedGradeCompany,
-        grade_score: parseFloat(gradeScore),
-        condition: condition.trim(),
-        language: language.trim(),
-        price: priceValue,
+        set_id: selectedSet || null,
+        subset_id: selectedSubset || null,
+        grade_company_id: selectedGradeCompany || null,
+        grade_score: gradeScore ? gradeScore : null,
+        condition: condition.trim() || null,
+        language: language.trim() || null,
+        price: parseFloat(price) || null,
       };
-      
+
       const { error: insertError } = await supabase.from('slabs').insert(slabData);
       if (insertError) throw new Error('Failed to insert slab: ' + insertError.message);
 
@@ -324,17 +300,18 @@ export default function NewSlabForm({
       if (imageUploadRef.current && imageUploadRef.current.reset) {
         imageUploadRef.current.reset();
       }
-      // Consider a prop to tell ImageUpload to reset if it has complex internal state not cleared by new file array
-      if(onFormSubmitSuccess) onFormSubmitSuccess();
+      setResetImageUploadKey(prevKey => prevKey + 1);
 
-    } catch (err) {
-      const errorMessage = `Operation failed: ${err.message}`;
+      if (onFormSubmitSuccess) onFormSubmitSuccess();
+
+    } catch (error) {
+      console.error('Error creating slab:', error);
+      const errorMessage = error.message || 'An unexpected error occurred while creating the slab.';
       setSubmitError(errorMessage);
       showToast(errorMessage, { 
         severity: 'error',
         title: 'Error' 
       });
-      console.error("Submit Error Details:", err);
     } finally {
       setFormSubmitLoading(false);
     }
@@ -342,292 +319,315 @@ export default function NewSlabForm({
 
   if (loadingCategoriesExternal) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 5 }}>
-        <CircularProgress />
-        <Typography sx={{ mt: 2 }}>Loading category data from parent...</Typography>
-      </Box>
+      <div className={styles.formContainer} style={{ textAlign: 'center' }}>
+        <div className={styles.loading}>
+          <div className={styles.spinner}></div>
+          <span>Loading form data...</span>
+        </div>
+      </div>
     );
   }
+
   if (categoryErrorExternal) {
     return (
-      <Alert severity="error" sx={{ mb: 3, mt: 2 }}>
-        {typeof categoryErrorExternal === 'string' ? categoryErrorExternal : 'Error loading categories from parent.'}
-      </Alert>
+      <div className={styles.formContainer}>
+        <div style={{ color: 'var(--error-color)', padding: '1rem', backgroundColor: 'var(--error-bg)', borderRadius: '6px', border: '1px solid var(--error-color)' }}>
+          {typeof categoryErrorExternal === 'string' ? categoryErrorExternal : 'An error occurred while loading essential data for the form.'}
+        </div>
+      </div>
     );
   }
 
   return (
-    <Box sx={{ maxWidth: 800, mx: 'auto', p: 3 }}>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
-          Add New Slab
-        </Typography>
-        <Button 
-          component={Link} 
-          href="/dashboard/slabs" 
-          variant="outlined"
-          startIcon={<ArrowBackIcon />}
-          sx={{ borderRadius: 2 }}
-        >
-          Back to Slabs
-        </Button>
-      </Box>
-
-      {/* Loading state */}
-      {loadingCategoriesExternal && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 5 }}>
-          <CircularProgress />
-          <Typography sx={{ mt: 2 }}>Loading category data from parent...</Typography>
-        </Box>
-      )}
-
-      {/* Error state */}
-      {categoryErrorExternal && (
-        <Alert severity="error" sx={{ mb: 3, mt: 2 }}>
-          {typeof categoryErrorExternal === 'string' ? categoryErrorExternal : 'Error loading categories from parent.'}
-        </Alert>
-      )}
-
+    <div className={styles.formContainer}>
       {/* Form */}
-      {!loadingCategoriesExternal && !categoryErrorExternal && (
-        <Paper elevation={0} sx={{ borderRadius: 2, overflow: 'hidden' }}>
-          <Box component="form" onSubmit={handleSubmit} sx={{ p: 3 }}>
-            {/* Basic Information Section */}
-            <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <InfoIcon color="primary" />
-                Basic Information
-              </Typography>
-              
-              <Stack spacing={3}>
-                <TextField
-                  fullWidth
-                  label="Slab Name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <LocalOfferIcon color="action" />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Price"
-                      type="number"
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                      InputProps={{
-                        inputProps: { min: 0, step: "0.01" },
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <CurrencyRupeeIcon color="action" />
-                          </InputAdornment>
-                        ),
-                      }}
-                      required
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth required>
-                      <InputLabel>Language</InputLabel>
-                      <Select
-                        value={language}
-                        label="Language"
-                        onChange={(e) => setLanguage(e.target.value)}
-                        startAdornment={
-                          <InputAdornment position="start">
-                            <LanguageIcon color="action" />
-                          </InputAdornment>
-                        }
-                      >
-                        <MenuItem value="Japanese">Japanese</MenuItem>
-                        <MenuItem value="English">English</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                </Grid>
-
-                <FormControl fullWidth required>
-                  <InputLabel>Condition</InputLabel>
-                  <Select
-                    value={condition}
-                    label="Condition"
-                    onChange={(e) => setCondition(e.target.value)}
-                  >
-                    <MenuItem value="perfect">Perfect</MenuItem>
-                    <MenuItem value="scratched">Scratched</MenuItem>
-                    <MenuItem value="damaged">Damaged</MenuItem>
-                  </Select>
-                </FormControl>
-              </Stack>
-            </Box>
-
-            <Divider sx={{ my: 4 }} />
-
-            {/* Grading Information Section */}
-            <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <GradeIcon color="primary" />
-                Grading Information
-              </Typography>
-              
-              <Stack spacing={3}>
-                <FormControl fullWidth required disabled={loadingGradeCompanies}>
-                  <InputLabel>Grading Company</InputLabel>
-                  <Select
-                    value={selectedGradeCompany}
-                    label="Grading Company"
-                    onChange={(e) => setSelectedGradeCompany(e.target.value)}
-                  >
-                    <MenuItem value=""><em>Select Grading Company</em></MenuItem>
-                    {gradeCompanies.map((gc) => (
-                      <MenuItem key={gc.id} value={gc.id}>{gc.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <FormControl fullWidth required disabled={!selectedGradeCompany || availableGrades.length === 0}>
-                  <InputLabel>Grade Score</InputLabel>
-                  <Select
-                    value={gradeScore}
-                    label="Grade Score"
-                    onChange={(e) => setGradeScore(e.target.value)}
-                  >
-                    <MenuItem value=""><em>Select Grade Score</em></MenuItem>
-                    {availableGrades.map((grade) => (
-                      <MenuItem key={grade} value={grade}>{grade}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Stack>
-            </Box>
-
-            <Divider sx={{ my: 4 }} />
-
-            {/* Classification Section */}
-            <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <CategoryIcon color="primary" />
-                Classification
-              </Typography>
-              
-              <Stack spacing={3}>
-                <FormControl fullWidth required>
-                  <InputLabel>Category</InputLabel>
-                  <Select
-                    value={selectedCategory}
-                    label="Category"
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                  >
-                    <MenuItem value=""><em>Select Category</em></MenuItem>
-                    {categories.map((cat) => (
-                      <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <FormControl fullWidth required disabled={!selectedCategory}>
-                  <InputLabel>Set</InputLabel>
-                  <Select
-                    value={selectedSet}
-                    label="Set"
-                    onChange={(e) => setSelectedSet(e.target.value)}
-                  >
-                    <MenuItem value=""><em>Select Set</em></MenuItem>
-                    {sets.map((s) => (
-                      <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <FormControl fullWidth required disabled={!selectedSet}>
-                  <InputLabel>Subset</InputLabel>
-                  <Select
-                    value={selectedSubset}
-                    label="Subset"
-                    onChange={(e) => setSelectedSubset(e.target.value)}
-                  >
-                    <MenuItem value=""><em>Select Subset</em></MenuItem>
-                    {subsets.map((sub) => (
-                      <MenuItem key={sub.id} value={sub.id}>{sub.name} - {sub.slug}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Stack>
-            </Box>
-
-            <Divider sx={{ my: 4 }} />
-
-            {/* Images Section */}
-            <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <ImageIcon color="primary" />
-                Images & Thumbnail
-              </Typography>
-
-              <Alert severity="info" sx={{ mb: 2 }}>
-                Upload clear images of your slab. At least one image and a thumbnail are required.
-              </Alert>
-
-              <ImageUpload 
-                bucketName="slabimages" 
-                pathPrefix="slabs" 
-                onUploadComplete={handleImageUploadComplete} 
-                ref={imageUploadRef}
+      <form onSubmit={handleSubmit} className={styles.form}>
+        {/* Basic Information Section */}
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h2 className={styles.sectionTitle}>Basic Information</h2>
+          </div>
+          
+          <div className={styles.fieldGroup}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="slabName">
+                Slab Name <span className={styles.required}>*</span>
+              </label>
+              <input
+                id="slabName"
+                type="text"
+                className={styles.input}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                placeholder="Enter slab name"
               />
-              
-              {uploadedMainImageFiles.length > 0 && (
-                <Fade in={true}>
-                  <Alert 
-                    severity="success" 
-                    sx={{ mt: 2 }}
-                    icon={<CheckCircleOutlineIcon />}
-                  >
-                    {uploadedMainImageFiles.length} image(s) ready. 
-                    {uploadedThumbnailFile 
-                      ? ' Thumbnail is set.' 
-                      : ' Please select a thumbnail using the "Make Thumb" button.'}
-                  </Alert>
-                </Fade>
-              )}
-            </Box>
+            </div>
 
-            {/* Submit Button */}
-            <Divider sx={{ my: 3 }} />
-            <Stack direction="row" spacing={2} justifyContent="flex-end">
-              <Button
-                variant="outlined"
-                onClick={() => window.history.back()}
-                disabled={formSubmitLoading}
+            <div className={styles.row}>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="price">
+                  Price <span className={styles.required}>*</span>
+                </label>
+                <input
+                  id="price"
+                  type="number"
+                  className={styles.input}
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  min="0"
+                  step="0.01"
+                  required
+                  placeholder="0.00"
+                />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="language">
+                  Language <span className={styles.required}>*</span>
+                </label>
+                <select
+                  id="language"
+                  className={styles.select}
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  required
+                >
+                  <option value="Japanese">Japanese</option>
+                  <option value="English">English</option>
+                </select>
+              </div>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="condition">
+                Condition <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="condition"
+                className={styles.select}
+                value={condition}
+                onChange={(e) => setCondition(e.target.value)}
+                required
               >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="contained"
-                disabled={formSubmitLoading}
-                startIcon={formSubmitLoading ? <CircularProgress size={20} /> : <SaveIcon />}
-                sx={{
-                  minWidth: 200,
-                  background: !formSubmitLoading
-                    ? `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 90%)`
-                    : undefined,
-                }}
+                <option value="perfect">Perfect</option>
+                <option value="near-perfect">Near Perfect</option>
+                <option value="excellent">Excellent</option>
+                <option value="good">Good</option>
+                <option value="fair">Fair</option>
+                <option value="poor">Poor</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Classification Section */}
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            <h2 className={styles.sectionTitle}>Classification</h2>
+          </div>
+          
+          <div className={styles.fieldGroup}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="category">
+                Category <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="category"
+                className={styles.select}
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                required
+                disabled={loadingCategoriesExternal}
               >
-                {formSubmitLoading ? 'Adding Slab...' : 'Add Slab to Collection'}
-              </Button>
-            </Stack>
-          </Box>
-        </Paper>
-      )}
-    </Box>
+                <option value="">
+                  {loadingCategoriesExternal ? 'Loading categories...' : 'Select Category'}
+                </option>
+                {(categories || []).map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="set">
+                Set <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="set"
+                className={styles.select}
+                value={selectedSet}
+                onChange={(e) => setSelectedSet(e.target.value)}
+                required
+                disabled={!selectedCategory || loadingSets}
+              >
+                <option value="">
+                  {!selectedCategory 
+                    ? 'Select Category first' 
+                    : loadingSets 
+                      ? 'Loading sets...' 
+                      : 'Select Set'}
+                </option>
+                {(sets || []).map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="subset">
+                Subset <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="subset"
+                className={styles.select}
+                value={selectedSubset}
+                onChange={(e) => setSelectedSubset(e.target.value)}
+                required
+                disabled={!selectedSet || loadingSubsets}
+              >
+                <option value="">
+                  {!selectedSet 
+                    ? 'Select Set first' 
+                    : loadingSubsets 
+                      ? 'Loading subsets...' 
+                      : 'Select Subset'}
+                </option>
+                {(subsets || []).map((sub) => (
+                  <option key={sub.id} value={sub.id}>{sub.name} - {sub.slug}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Grading Section */}
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+            </svg>
+            <h2 className={styles.sectionTitle}>Grading Information</h2>
+          </div>
+          
+          <div className={styles.fieldGroup}>
+            <div className={styles.row}>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="gradeCompany">
+                  Grade Company <span className={styles.required}>*</span>
+                </label>
+                <select
+                  id="gradeCompany"
+                  className={styles.select}
+                  value={selectedGradeCompany}
+                  onChange={(e) => setSelectedGradeCompany(e.target.value)}
+                  required
+                  disabled={loadingGradeCompanies}
+                >
+                  <option value="">
+                    {loadingGradeCompanies ? 'Loading grade companies...' : 'Select Grade Company'}
+                  </option>
+                  {(gradeCompanies || []).map((company) => (
+                    <option key={company.id} value={company.id}>{company.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="gradeScore">
+                  Grade Score
+                </label>
+                <select
+                  id="gradeScore"
+                  className={styles.select}
+                  value={gradeScore}
+                  onChange={(e) => setGradeScore(e.target.value)}
+                  disabled={!selectedGradeCompany || availableGrades.length === 0}
+                >
+                  <option value="">
+                    {!selectedGradeCompany 
+                      ? 'Select Grade Company first' 
+                      : availableGrades.length === 0 
+                        ? 'No grades available' 
+                        : 'Select Grade (Optional)'}
+                  </option>
+                  {availableGrades.map((grade) => (
+                    <option key={grade} value={grade}>{grade}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Images Section */}
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <h2 className={styles.sectionTitle}>Images & Thumbnail</h2>
+          </div>
+
+          <div className={styles.infoAlert}>
+            Upload clear images of your slab. At least one image and a thumbnail are required.
+          </div>
+
+          <div className={styles.imageSection}>
+            <ImageUpload
+              ref={imageUploadRef}
+              bucketName="slabimages"
+              pathPrefix="slabs"
+              onUploadComplete={handleImageUploadComplete}
+              resetKey={resetImageUploadKey}
+            />
+          </div>
+          
+          {uploadedMainImageFiles.length > 0 && (
+            <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--success-bg)', border: '1px solid var(--success-color)', borderRadius: '6px', color: 'var(--success-color)' }}>
+              {uploadedMainImageFiles.length} image(s) ready.
+              {uploadedThumbnailFile 
+                ? ' Thumbnail is set.' 
+                : ' Please select a thumbnail using the "Make Thumb" button.'}
+            </div>
+          )}
+        </div>
+
+        {/* Submit Button */}
+        <div className={styles.buttonGroup}>
+          <button
+            type="button"
+            className={`${styles.button} ${styles.buttonSecondary}`}
+            onClick={() => window.history.back()}
+            disabled={formSubmitLoading}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className={`${styles.button} ${styles.buttonPrimary}`}
+            disabled={formSubmitLoading}
+          >
+            {formSubmitLoading ? (
+              <div className={styles.loading}>
+                <div className={styles.spinner}></div>
+                Adding Slab...
+              </div>
+            ) : (
+              <>
+                <svg className={styles.sectionIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+                Add Slab to Collection
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 } 

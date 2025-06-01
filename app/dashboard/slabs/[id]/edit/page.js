@@ -19,6 +19,9 @@ export default function EditSlabPage() {
   
   const [slab, setSlab] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [sets, setSets] = useState([]);
+  const [subsets, setSubsets] = useState([]);
+  const [gradeCompanies, setGradeCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
@@ -64,8 +67,11 @@ export default function EditSlabPage() {
           throw new Error(`Failed to fetch categories: ${categoriesResult.error.message}`);
         }
         
-        // Even if the other queries fail, we'll still have some data
+        // Set all the data
         setCategories(categoriesResult.data || []);
+        setSets(setsResult.data || []);
+        setSubsets(subsetsResult.data || []);
+        setGradeCompanies(gradeCompaniesResult.data || []);
         
         // Log the results for debugging
         console.log('Edit Slab Data:', {
@@ -119,9 +125,12 @@ export default function EditSlabPage() {
       ) : (
         <Paper sx={{ p: 3 }}>
           <EditSlabForm
-            initialSlab={slab}
-            initialCategories={categories}
-            onFormSubmitSuccess={handleFormSuccess}
+            slab={slab}
+            categories={categories}
+            sets={sets}
+            subsets={subsets}
+            gradeCompanies={gradeCompanies}
+            onSuccess={handleFormSuccess}
           />
         </Paper>
       )}

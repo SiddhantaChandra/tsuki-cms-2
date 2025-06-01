@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
+import { useToast } from '@/components/UI/Toast';
 import { v4 as uuidv4 } from 'uuid';
 import slugify from 'slugify';
 import {
@@ -43,12 +44,12 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CurrencyRupeeIcon from '@mui/icons-material/CurrencyRupee';
 import ImageUpload from '@/components/ImageUpload/ImageUpload';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
 
 export default function NewAccessoryForm({ categories }) {
   const supabase = createClient();
   const router = useRouter();
   const theme = useTheme();
+  const { showToast } = useToast();
 
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
@@ -126,6 +127,7 @@ export default function NewAccessoryForm({ categories }) {
     event.preventDefault();
     if (!validateForm()) {
       setSubmitError("Please correct the errors in the form.");
+      showToast("Please correct the errors in the form.", { severity: 'error' });
       return;
     }
 
@@ -188,6 +190,12 @@ export default function NewAccessoryForm({ categories }) {
 
       if (insertError) throw new Error(`Database insert failed: ${insertError.message}`);
 
+      // Show success toast notification
+      showToast('Accessory added successfully!', { 
+        severity: 'success',
+        title: 'Success'
+      });
+
       // Reset form
       setName('');
       setSlug('');
@@ -213,7 +221,12 @@ export default function NewAccessoryForm({ categories }) {
 
     } catch (error) {
       console.error('Error submitting accessory:', error);
-      setSubmitError(error.message || 'An unexpected error occurred.');
+      const errorMessage = error.message || 'An unexpected error occurred.';
+      setSubmitError(errorMessage);
+      showToast(errorMessage, { 
+        severity: 'error',
+        title: 'Error' 
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -239,33 +252,6 @@ export default function NewAccessoryForm({ categories }) {
 
       <Paper elevation={0} sx={{ borderRadius: 2, overflow: 'hidden' }}>
         <Box component="form" onSubmit={handleSubmit} sx={{ p: 3 }}>
-          {/* Notifications */}
-          <AnimatePresence>
-            {submitError && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-              >
-                <Alert severity="error" sx={{ mb: 3 }} onClose={() => setSubmitError(null)}>
-                  {submitError}
-                </Alert>
-              </motion.div>
-            )}
-            
-            {formSuccess && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-              >
-                <Alert severity="success" sx={{ mb: 3 }} onClose={() => setFormSuccess(false)}>
-                  Accessory created successfully! Redirecting...
-                </Alert>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
           {/* Basic Information Section */}
           <Box sx={{ mb: 4 }}>
             <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>

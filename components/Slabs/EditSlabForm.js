@@ -9,6 +9,7 @@ import {
 import { createClient } from '@/utils/supabase/client';
 import ImageUpload from '@/components/ImageUpload/ImageUpload';
 import DraggableImageItem from '@/components/ImageUpload/DraggableImageItem';
+import { useToast } from '@/components/UI/Toast';
 import { v4 as uuidv4 } from 'uuid';
 import slugify from 'slugify';
 import StarIcon from '@mui/icons-material/Star';
@@ -20,7 +21,7 @@ import { Cropper, RectangleStencil } from 'react-advanced-cropper';
 import 'react-advanced-cropper/dist/style.css';
 import imageCompression from 'browser-image-compression';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   DndContext,
   closestCenter,
@@ -59,6 +60,7 @@ export default function EditSlabForm({
 }) {
   const supabase = createClient();
   const theme = useTheme();
+  const { showToast } = useToast();
 
   // Form fields
   const [name, setName] = useState(initialSlab?.name || '');
@@ -519,6 +521,12 @@ export default function EditSlabForm({
 
       if (updateError) throw new Error('Failed to update slab: ' + updateError.message);
 
+      // Show success toast notification
+      showToast('Slab updated successfully!', { 
+        severity: 'success',
+        title: 'Success'
+      });
+
       // Delete old images that were removed
       if (imagesToDelete.length > 0) {
         for (const imageUrl of imagesToDelete) {
@@ -544,7 +552,12 @@ export default function EditSlabForm({
       if (onFormSubmitSuccess) onFormSubmitSuccess();
 
     } catch (err) {
-      setSubmitError(err.message);
+      const errorMessage = err.message;
+      setSubmitError(errorMessage);
+      showToast(errorMessage, { 
+        severity: 'error',
+        title: 'Error' 
+      });
       console.error("Submit Error Details:", err);
     } finally {
       setFormSubmitLoading(false);
@@ -666,33 +679,6 @@ export default function EditSlabForm({
       {!loadingCategoriesExternal && !categoryErrorExternal && (
         <Paper elevation={0} sx={{ borderRadius: 2, overflow: 'hidden' }}>
           <Box component="form" onSubmit={handleSubmit} sx={{ p: 3 }}>
-            {/* Notifications */}
-            <AnimatePresence>
-              {submitError && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                >
-                  <Alert severity="error" sx={{ mb: 3 }} onClose={() => setSubmitError(null)}>
-                    {submitError}
-                  </Alert>
-                </motion.div>
-              )}
-              
-              {submitSuccess && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                >
-                  <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSubmitSuccess(null)}>
-                    {submitSuccess}
-                  </Alert>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
             {/* Basic Information Section */}
             <Box sx={{ mb: 4 }}>
               <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>

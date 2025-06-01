@@ -45,11 +45,12 @@ import CurrencyRupeeIcon from '@mui/icons-material/CurrencyRupee';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import ImageUpload from '@/components/ImageUpload/ImageUpload';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useToast } from '@/components/UI/Toast';
 
 export default function EditAccessoryForm({ accessory, categories, onSuccess }) {
   const supabase = createClient();
   const theme = useTheme();
+  const { showToast } = useToast();
 
   const [name, setName] = useState(accessory.name || '');
   const [slug, setSlug] = useState(accessory.slug || '');
@@ -146,6 +147,7 @@ export default function EditAccessoryForm({ accessory, categories, onSuccess }) 
     
     if (!validateForm()) {
       setSubmitError("Please correct the errors in the form.");
+      showToast("Please correct the errors in the form.", { severity: 'error' });
       return;
     }
 
@@ -235,6 +237,12 @@ export default function EditAccessoryForm({ accessory, categories, onSuccess }) 
 
       if (updateError) throw new Error(`Failed to update accessory: ${updateError.message}`);
 
+      // Show success toast notification
+      showToast('Accessory updated successfully!', { 
+        severity: 'success',
+        title: 'Success'
+      });
+
       // Success handling
       setSuccessMessage('Accessory updated successfully!');
       
@@ -252,7 +260,12 @@ export default function EditAccessoryForm({ accessory, categories, onSuccess }) 
 
     } catch (error) {
       console.error('Error updating accessory:', error);
-      setSubmitError(error.message || 'An unexpected error occurred.');
+      const errorMessage = error.message || 'An unexpected error occurred.';
+      setSubmitError(errorMessage);
+      showToast(errorMessage, { 
+        severity: 'error',
+        title: 'Error' 
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -278,33 +291,6 @@ export default function EditAccessoryForm({ accessory, categories, onSuccess }) 
 
       <Paper elevation={0} sx={{ borderRadius: 2, overflow: 'hidden' }}>
         <Box component="form" onSubmit={handleSubmit} sx={{ p: 3 }}>
-          {/* Notifications */}
-          <AnimatePresence>
-            {submitError && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-              >
-                <Alert severity="error" sx={{ mb: 3 }} onClose={() => setSubmitError(null)}>
-                  {submitError}
-                </Alert>
-              </motion.div>
-            )}
-            
-            {successMessage && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-              >
-                <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccessMessage('')}>
-                  {successMessage}
-                </Alert>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
           {/* Basic Information Section */}
           <Box sx={{ mb: 4 }}>
             <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>

@@ -11,7 +11,6 @@ import ImageUpload from '@/components/ImageUpload/ImageUpload';
 import { useToast } from '@/components/UI/Toast';
 import { v4 as uuidv4 } from 'uuid';
 import slugify from 'slugify';
-import { motion, AnimatePresence } from 'framer-motion';
 
 import InfoIcon from '@mui/icons-material/Info';
 import CategoryIcon from '@mui/icons-material/Category';
@@ -24,9 +23,6 @@ import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import LanguageIcon from '@mui/icons-material/Language';
 import ImageIcon from '@mui/icons-material/Image';
 import Link from 'next/link';
-
-const MotionCard = motion.create(Card);
-const MotionBox = motion.create(Box);
 
 export default function NewCardForm({ initialCategories, onFormSubmitSuccess, loadingCategories, categoryError }) {
   console.log('[NewCardForm] Function body execution (render start). LoadingCategories:', loadingCategories, 'CategoryError:', categoryError);
@@ -372,33 +368,6 @@ export default function NewCardForm({ initialCategories, onFormSubmitSuccess, lo
       {!loadingCategories && !categoryError && (
         <Paper elevation={0} sx={{ borderRadius: 2, overflow: 'hidden' }}>
           <Box component="form" onSubmit={handleSubmit} sx={{ p: 3 }}>
-            {/* Notifications */}
-            <AnimatePresence>
-              {submitError && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                >
-                  <Alert severity="error" sx={{ mb: 3 }} onClose={() => setSubmitError(null)}>
-                    {submitError}
-                  </Alert>
-                </motion.div>
-              )}
-              
-              {submitSuccess && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                >
-                  <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSubmitSuccess(null)}>
-                    {submitSuccess}
-                  </Alert>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
             {/* Basic Information Section */}
             <Box sx={{ mb: 4 }}>
               <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>

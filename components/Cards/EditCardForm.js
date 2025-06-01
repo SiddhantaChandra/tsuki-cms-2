@@ -14,7 +14,6 @@ import DraggableImageItem from '@/components/ImageUpload/DraggableImageItem';
 import { useToast } from '@/components/UI/Toast';
 import { v4 as uuidv4 } from 'uuid';
 import slugify from 'slugify';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,
   closestCenter,
@@ -48,23 +47,6 @@ import LanguageIcon from '@mui/icons-material/Language';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import CloseIcon from '@mui/icons-material/Close';
-
-// Motion components
-const MotionBox = motion.create(Box);
-
-// CSS animations
-const animationStyles = {
-  '@keyframes fadeInUp': {
-    '0%': {
-      opacity: 0,
-      transform: 'translateY(20px)'
-    },
-    '100%': {
-      opacity: 1,
-      transform: 'translateY(0)'
-    }
-  }
-};
 
 export default function ModernEditCardForm({ initialCardData, initialCategories, onFormSubmitSuccess }) {
   const supabase = createClient();
@@ -453,7 +435,6 @@ export default function ModernEditCardForm({ initialCardData, initialCategories,
       maxWidth: 800, 
       mx: 'auto', 
       p: 3,
-      ...animationStyles
     }}>
       {/* Header */}
       <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 700, mb: 3 }}>
@@ -464,11 +445,6 @@ export default function ModernEditCardForm({ initialCardData, initialCategories,
       <Grid container spacing={2} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card
-            sx={{ 
-              opacity: 0,
-              animation: 'fadeInUp 0.5s ease forwards',
-              animationDelay: '0.1s'
-            }}
           >
             <CardContent sx={{ textAlign: 'center' }}>
               <ImageIcon color="primary" />
@@ -478,13 +454,7 @@ export default function ModernEditCardForm({ initialCardData, initialCategories,
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card
-            sx={{ 
-              opacity: 0,
-              animation: 'fadeInUp 0.5s ease forwards',
-              animationDelay: '0.2s'
-            }}
-          >
+          <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <LocalOfferIcon color="success" />
               <Typography variant="h6">₹{price || '0'}</Typography>
@@ -493,13 +463,7 @@ export default function ModernEditCardForm({ initialCardData, initialCategories,
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card
-            sx={{ 
-              opacity: 0,
-              animation: 'fadeInUp 0.5s ease forwards',
-              animationDelay: '0.3s'
-            }}
-          >
+          <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <CategoryIcon color="info" />
               <Typography variant="h6">{categories.find(c => c.id === selectedCategory)?.name || 'N/A'}</Typography>
@@ -508,13 +472,7 @@ export default function ModernEditCardForm({ initialCardData, initialCategories,
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card
-            sx={{ 
-              opacity: 0,
-              animation: 'fadeInUp 0.5s ease forwards',
-              animationDelay: '0.4s'
-            }}
-          >
+          <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <EditIcon color="warning" />
               <Typography variant="h6">{hasChanges ? 'Modified' : 'No Changes'}</Typography>
@@ -527,33 +485,6 @@ export default function ModernEditCardForm({ initialCardData, initialCategories,
       {/* Form */}
       <Paper elevation={0} sx={{ borderRadius: 2, overflow: 'hidden' }}>
         <Box component="form" onSubmit={handleSubmit} sx={{ p: 3 }}>
-        {/* Notifications */}
-          <AnimatePresence>
-        {submitError && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-              >
-                <Alert severity="error" sx={{ mb: 3 }} onClose={() => setSubmitError(null)}>
-            {submitError}
-          </Alert>
-              </motion.div>
-        )}
-        
-        {submitSuccess && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-              >
-                <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSubmitSuccess(null)}>
-            {submitSuccess}
-          </Alert>
-              </motion.div>
-        )}
-          </AnimatePresence>
-
         {/* Basic Information Section */}
           <Box sx={{ mb: 4 }}>
             <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>

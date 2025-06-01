@@ -7,10 +7,10 @@ import {
 } from '@mui/material';
 import { createClient } from '@/utils/supabase/client';
 import ImageUpload from '@/components/ImageUpload/ImageUpload';
+import { useToast } from '@/components/UI/Toast';
 import { v4 as uuidv4 } from 'uuid';
 import slugify from 'slugify';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
 
 // Icons
 import InfoIcon from '@mui/icons-material/Info';
@@ -35,6 +35,7 @@ export default function NewSlabForm({
 }) {
   const supabase = createClient();
   const theme = useTheme();
+  const { showToast } = useToast();
 
   // Form fields
   const [name, setName] = useState('');
@@ -174,23 +175,79 @@ export default function NewSlabForm({
     setFormSubmitLoading(true); setSubmitError(null); setSubmitSuccess(null);
 
     // Validation
-    if (!name.trim()) { setSubmitError('Slab Name is required.'); setFormSubmitLoading(false); return; }
-    if (uploadedMainImageFiles.length === 0) { setSubmitError('At least one slab image is required.'); setFormSubmitLoading(false); return; }
-    if (!uploadedThumbnailFile) { 
-      setSubmitError('Thumbnail is required. Please use the "Make Thumb" button on one of the images.'); 
+    if (!name.trim()) { 
+      setSubmitError('Slab Name is required.'); 
+      showToast('Slab Name is required.', { severity: 'error' });
       setFormSubmitLoading(false); 
       return; 
     }
-    if (!selectedCategory) { setSubmitError('Category is required.'); setFormSubmitLoading(false); return; }
-    if (!selectedSet) { setSubmitError('Set is required.'); setFormSubmitLoading(false); return; }
-    if (!selectedSubset) { setSubmitError('Subset is required.'); setFormSubmitLoading(false); return; }
-    if (!selectedGradeCompany) { setSubmitError('Grading Company is required.'); setFormSubmitLoading(false); return; }
-    if (!gradeScore) { setSubmitError('Grade Score is required.'); setFormSubmitLoading(false); return; }
-    if (!condition.trim()) { setSubmitError('Condition is required.'); setFormSubmitLoading(false); return; }
-    if (!language.trim()) { setSubmitError('Language is required.'); setFormSubmitLoading(false); return; }
+    if (uploadedMainImageFiles.length === 0) { 
+      setSubmitError('At least one slab image is required.'); 
+      showToast('At least one slab image is required.', { severity: 'error' });
+      setFormSubmitLoading(false); 
+      return; 
+    }
+    if (!uploadedThumbnailFile) { 
+      setSubmitError('Thumbnail is required. Please use the "Make Thumb" button on one of the images.'); 
+      showToast('Thumbnail is required.', { severity: 'error' });
+      setFormSubmitLoading(false); 
+      return; 
+    }
+    if (!selectedCategory) { 
+      setSubmitError('Category is required.'); 
+      showToast('Category is required.', { severity: 'error' });
+      setFormSubmitLoading(false); 
+      return; 
+    }
+    if (!selectedSet) { 
+      setSubmitError('Set is required.'); 
+      showToast('Set is required.', { severity: 'error' });
+      setFormSubmitLoading(false); 
+      return; 
+    }
+    if (!selectedSubset) { 
+      setSubmitError('Subset is required.'); 
+      showToast('Subset is required.', { severity: 'error' });
+      setFormSubmitLoading(false); 
+      return; 
+    }
+    if (!selectedGradeCompany) { 
+      setSubmitError('Grading Company is required.'); 
+      showToast('Grading Company is required.', { severity: 'error' });
+      setFormSubmitLoading(false); 
+      return; 
+    }
+    if (!gradeScore) { 
+      setSubmitError('Grade Score is required.'); 
+      showToast('Grade Score is required.', { severity: 'error' });
+      setFormSubmitLoading(false); 
+      return; 
+    }
+    if (!condition.trim()) { 
+      setSubmitError('Condition is required.'); 
+      showToast('Condition is required.', { severity: 'error' });
+      setFormSubmitLoading(false); 
+      return; 
+    }
+    if (!language.trim()) { 
+      setSubmitError('Language is required.'); 
+      showToast('Language is required.', { severity: 'error' });
+      setFormSubmitLoading(false); 
+      return; 
+    }
     const priceValue = parseFloat(price);
-    if (isNaN(priceValue) || priceValue <= 0) { setSubmitError('Price must be a positive number.'); setFormSubmitLoading(false); return; }
-    if (categoryErrorExternal) { setSubmitError('Cannot submit, categories failed to load on parent page.'); setFormSubmitLoading(false); return;}
+    if (isNaN(priceValue) || priceValue <= 0) { 
+      setSubmitError('Price must be a positive number.'); 
+      showToast('Price must be a positive number.', { severity: 'error' });
+      setFormSubmitLoading(false); 
+      return; 
+    }
+    if (categoryErrorExternal) { 
+      setSubmitError('Cannot submit, categories failed to load on parent page.'); 
+      showToast('Cannot submit, categories failed to load on parent page.', { severity: 'error' });
+      setFormSubmitLoading(false); 
+      return;
+    }
 
     try {
       const slabName = name.trim();
@@ -252,6 +309,12 @@ export default function NewSlabForm({
       const { error: insertError } = await supabase.from('slabs').insert(slabData);
       if (insertError) throw new Error('Failed to insert slab: ' + insertError.message);
 
+      // Show success toast notification
+      showToast('Slab added successfully!', { 
+        severity: 'success',
+        title: 'Success'
+      });
+
       setSubmitSuccess('Slab added successfully!');
       // Reset form fields
       setName(''); setSelectedCategory(''); setSelectedSet(''); setSelectedSubset('');
@@ -265,7 +328,12 @@ export default function NewSlabForm({
       if(onFormSubmitSuccess) onFormSubmitSuccess();
 
     } catch (err) {
-      setSubmitError('Operation failed: ' + err.message);
+      const errorMessage = `Operation failed: ${err.message}`;
+      setSubmitError(errorMessage);
+      showToast(errorMessage, { 
+        severity: 'error',
+        title: 'Error' 
+      });
       console.error("Submit Error Details:", err);
     } finally {
       setFormSubmitLoading(false);
@@ -325,33 +393,6 @@ export default function NewSlabForm({
       {!loadingCategoriesExternal && !categoryErrorExternal && (
         <Paper elevation={0} sx={{ borderRadius: 2, overflow: 'hidden' }}>
           <Box component="form" onSubmit={handleSubmit} sx={{ p: 3 }}>
-            {/* Notifications */}
-            <AnimatePresence>
-              {submitError && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                >
-                  <Alert severity="error" sx={{ mb: 3 }} onClose={() => setSubmitError(null)}>
-                    {submitError}
-                  </Alert>
-                </motion.div>
-              )}
-              
-              {submitSuccess && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                >
-                  <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSubmitSuccess(null)}>
-                    {submitSuccess}
-                  </Alert>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
             {/* Basic Information Section */}
             <Box sx={{ mb: 4 }}>
               <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
